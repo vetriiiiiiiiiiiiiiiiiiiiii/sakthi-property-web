@@ -72,7 +72,7 @@ sudo install -d -o sakthi-property -g sakthi-property -m 0750 \
   /opt/sakthi-property-web/server/logs
 cd /opt/sakthi-property-web
 sudo -u sakthi-property npm ci
-sudo -u sakthi-property npm ci --prefix server
+sudo -u sakthi-property npm ci --include=dev --prefix server
 ```
 
 The frontend calls the API at the same origin (`/api`), so no private API
@@ -139,7 +139,11 @@ into the command's environment:
 ```sh
 sudo -u sakthi-property sh -c \
   'set -a; . /etc/sakthi-property/server.env; set +a; cd /opt/sakthi-property-web/server && npx prisma migrate deploy'
+sudo -u sakthi-property npm prune --omit=dev --prefix server
 ```
+
+The Prisma CLI is only needed for migrations. Pruning the backend development
+dependencies afterward keeps them out of the running production service.
 
 ## 6. Install and start the API service
 
@@ -232,9 +236,10 @@ cd /opt/sakthi-property-web
 sudo -u sakthi-property git -C /opt/sakthi-property-web pull --ff-only
 sudo -u sakthi-property npm ci
 sudo -u sakthi-property npm run build
-sudo -u sakthi-property npm ci --prefix server
+sudo -u sakthi-property npm ci --include=dev --prefix server
 sudo -u sakthi-property sh -c \
   'set -a; . /etc/sakthi-property/server.env; set +a; cd /opt/sakthi-property-web/server && npx prisma migrate deploy'
+sudo -u sakthi-property npm prune --omit=dev --prefix server
 sudo systemctl restart sakthi-property-api
 sudo systemctl status sakthi-property-api
 ```
