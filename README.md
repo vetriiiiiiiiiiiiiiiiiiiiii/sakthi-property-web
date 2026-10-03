@@ -70,17 +70,9 @@ allow it, set `GOOGLE_AUTO_PROVISION=true` and a non-empty
 
 ## Production deployment
 
-Deploy the frontend and API behind HTTPS, with `VITE_STANDALONE_MODE=false`.
-Set `VITE_API_URL` to the public API URL (or leave it empty when a reverse proxy
-serves `/api` on the same domain). Set `CLIENT_ORIGINS` to the exact public
-frontend URL, `NODE_ENV=production`, a unique `AUTH_SECRET`, and real
-PostgreSQL, Resend, and Google credentials. Run `npx prisma migrate deploy`
-from `server/` against the production database before starting the API.
-
-Container images can be built with `docker build .` for the frontend and
-`docker build server` for the API. The frontend image accepts build arguments
-`VITE_API_URL` and `VITE_GOOGLE_CLIENT_ID`; do not pass private secrets as
-frontend build arguments.
+For a self-managed Linux server without Docker, follow
+[DEPLOYMENT.md](./DEPLOYMENT.md) to configure Node.js, PostgreSQL, systemd,
+Nginx, HTTPS, database migrations, and the frontend build.
 
 ### Code Splitting
 

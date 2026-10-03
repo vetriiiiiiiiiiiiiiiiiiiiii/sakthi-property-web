@@ -1,0 +1,23 @@
+[Unit]
+Description=Sakthi Property API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=sakthi-property
+Group=sakthi-property
+WorkingDirectory=/opt/sakthi-property-web/server
+EnvironmentFile=/etc/sakthi-property/server.env
+Environment=NODE_ENV=production
+Environment=PORT=5000
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sakthi-property-web/server/logs
+
+[Install]
+WantedBy=multi-user.target
