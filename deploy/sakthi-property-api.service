@@ -17,7 +17,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/sakthi-property-web/server/logs
+ReadWritePaths=/opt/sakthi-property-web/server/logs /var/lib/sakthi-property/uploads
 
 [Install]
 WantedBy=multi-user.target

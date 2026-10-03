@@ -161,6 +161,7 @@ export type PropertyCountAggregateOutputType = {
   rentAmount: number
   forSale: number
   listed: number
+  fileAttachments: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -302,6 +303,7 @@ export type PropertyCountAggregateInputType = {
   rentAmount?: true
   forSale?: true
   listed?: true
+  fileAttachments?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -426,6 +428,7 @@ export type PropertyGroupByOutputType = {
   rentAmount: runtime.Decimal | null
   forSale: boolean
   listed: boolean
+  fileAttachments: runtime.JsonValue | null
   createdAt: Date
   updatedAt: Date
   _count: PropertyCountAggregateOutputType | null
@@ -486,6 +489,7 @@ export type PropertyWhereInput = {
   rentAmount?: Prisma.DecimalNullableFilter<"Property"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFilter<"Property"> | boolean
   listed?: Prisma.BoolFilter<"Property"> | boolean
+  fileAttachments?: Prisma.JsonNullableFilter<"Property">
   createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   tenants?: Prisma.TenantListRelationFilter
@@ -528,6 +532,7 @@ export type PropertyOrderByWithRelationInput = {
   rentAmount?: Prisma.SortOrderInput | Prisma.SortOrder
   forSale?: Prisma.SortOrder
   listed?: Prisma.SortOrder
+  fileAttachments?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   tenants?: Prisma.TenantOrderByRelationAggregateInput
@@ -573,6 +578,7 @@ export type PropertyWhereUniqueInput = Prisma.AtLeast<{
   rentAmount?: Prisma.DecimalNullableFilter<"Property"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFilter<"Property"> | boolean
   listed?: Prisma.BoolFilter<"Property"> | boolean
+  fileAttachments?: Prisma.JsonNullableFilter<"Property">
   createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   tenants?: Prisma.TenantListRelationFilter
@@ -615,6 +621,7 @@ export type PropertyOrderByWithAggregationInput = {
   rentAmount?: Prisma.SortOrderInput | Prisma.SortOrder
   forSale?: Prisma.SortOrder
   listed?: Prisma.SortOrder
+  fileAttachments?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PropertyCountOrderByAggregateInput
@@ -660,6 +667,7 @@ export type PropertyScalarWhereWithAggregatesInput = {
   rentAmount?: Prisma.DecimalNullableWithAggregatesFilter<"Property"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolWithAggregatesFilter<"Property"> | boolean
   listed?: Prisma.BoolWithAggregatesFilter<"Property"> | boolean
+  fileAttachments?: Prisma.JsonNullableWithAggregatesFilter<"Property">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Property"> | Date | string
 }
@@ -697,6 +705,7 @@ export type PropertyCreateInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantCreateNestedManyWithoutPropertyInput
@@ -739,6 +748,7 @@ export type PropertyUncheckedCreateInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantUncheckedCreateNestedManyWithoutPropertyInput
@@ -781,6 +791,7 @@ export type PropertyUpdateInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUpdateManyWithoutPropertyNestedInput
@@ -823,6 +834,7 @@ export type PropertyUncheckedUpdateInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUncheckedUpdateManyWithoutPropertyNestedInput
@@ -865,6 +877,7 @@ export type PropertyCreateManyInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -902,6 +915,7 @@ export type PropertyUpdateManyMutationInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -939,6 +953,7 @@ export type PropertyUncheckedUpdateManyInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -976,6 +991,7 @@ export type PropertyCountOrderByAggregateInput = {
   rentAmount?: Prisma.SortOrder
   forSale?: Prisma.SortOrder
   listed?: Prisma.SortOrder
+  fileAttachments?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -1210,6 +1226,7 @@ export type PropertyCreateWithoutDocumentsInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantCreateNestedManyWithoutPropertyInput
@@ -1251,6 +1268,7 @@ export type PropertyUncheckedCreateWithoutDocumentsInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantUncheckedCreateNestedManyWithoutPropertyInput
@@ -1308,6 +1326,7 @@ export type PropertyUpdateWithoutDocumentsInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUpdateManyWithoutPropertyNestedInput
@@ -1349,6 +1368,7 @@ export type PropertyUncheckedUpdateWithoutDocumentsInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUncheckedUpdateManyWithoutPropertyNestedInput
@@ -1390,6 +1410,7 @@ export type PropertyCreateWithoutTenantsInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   documents?: Prisma.PropertyDocumentCreateNestedManyWithoutPropertyInput
@@ -1431,6 +1452,7 @@ export type PropertyUncheckedCreateWithoutTenantsInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   documents?: Prisma.PropertyDocumentUncheckedCreateNestedManyWithoutPropertyInput
@@ -1488,6 +1510,7 @@ export type PropertyUpdateWithoutTenantsInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   documents?: Prisma.PropertyDocumentUpdateManyWithoutPropertyNestedInput
@@ -1529,6 +1552,7 @@ export type PropertyUncheckedUpdateWithoutTenantsInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   documents?: Prisma.PropertyDocumentUncheckedUpdateManyWithoutPropertyNestedInput
@@ -1570,6 +1594,7 @@ export type PropertyCreateWithoutBillsInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantCreateNestedManyWithoutPropertyInput
@@ -1611,6 +1636,7 @@ export type PropertyUncheckedCreateWithoutBillsInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantUncheckedCreateNestedManyWithoutPropertyInput
@@ -1668,6 +1694,7 @@ export type PropertyUpdateWithoutBillsInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUpdateManyWithoutPropertyNestedInput
@@ -1709,6 +1736,7 @@ export type PropertyUncheckedUpdateWithoutBillsInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUncheckedUpdateManyWithoutPropertyNestedInput
@@ -1750,6 +1778,7 @@ export type PropertyCreateWithoutMaintenanceInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantCreateNestedManyWithoutPropertyInput
@@ -1791,6 +1820,7 @@ export type PropertyUncheckedCreateWithoutMaintenanceInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantUncheckedCreateNestedManyWithoutPropertyInput
@@ -1848,6 +1878,7 @@ export type PropertyUpdateWithoutMaintenanceInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUpdateManyWithoutPropertyNestedInput
@@ -1889,6 +1920,7 @@ export type PropertyUncheckedUpdateWithoutMaintenanceInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUncheckedUpdateManyWithoutPropertyNestedInput
@@ -1930,6 +1962,7 @@ export type PropertyCreateWithoutStorageFeesInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantCreateNestedManyWithoutPropertyInput
@@ -1971,6 +2004,7 @@ export type PropertyUncheckedCreateWithoutStorageFeesInput = {
   rentAmount?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   tenants?: Prisma.TenantUncheckedCreateNestedManyWithoutPropertyInput
@@ -2028,6 +2062,7 @@ export type PropertyUpdateWithoutStorageFeesInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUpdateManyWithoutPropertyNestedInput
@@ -2069,6 +2104,7 @@ export type PropertyUncheckedUpdateWithoutStorageFeesInput = {
   rentAmount?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   forSale?: Prisma.BoolFieldUpdateOperationsInput | boolean
   listed?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tenants?: Prisma.TenantUncheckedUpdateManyWithoutPropertyNestedInput
@@ -2177,6 +2213,7 @@ export type PropertySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   rentAmount?: boolean
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   tenants?: boolean | Prisma.Property$tenantsArgs<ExtArgs>
@@ -2220,6 +2257,7 @@ export type PropertySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   rentAmount?: boolean
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["property"]>
@@ -2257,6 +2295,7 @@ export type PropertySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   rentAmount?: boolean
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["property"]>
@@ -2294,11 +2333,12 @@ export type PropertySelectScalar = {
   rentAmount?: boolean
   forSale?: boolean
   listed?: boolean
+  fileAttachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PropertyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "type" | "address" | "state" | "city" | "pincode" | "lat" | "lng" | "totalFloors" | "floorNumber" | "flatType" | "flatsCount" | "length" | "width" | "carpetArea" | "builtupArea" | "plotArea" | "facingRoad" | "landUse" | "expectedPrice" | "pricePerSqft" | "monthlyMaintenance" | "direction" | "furnished" | "additionalDetails" | "ownerName" | "ownerPhone" | "status" | "rentAmount" | "forSale" | "listed" | "createdAt" | "updatedAt", ExtArgs["result"]["property"]>
+export type PropertyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "type" | "address" | "state" | "city" | "pincode" | "lat" | "lng" | "totalFloors" | "floorNumber" | "flatType" | "flatsCount" | "length" | "width" | "carpetArea" | "builtupArea" | "plotArea" | "facingRoad" | "landUse" | "expectedPrice" | "pricePerSqft" | "monthlyMaintenance" | "direction" | "furnished" | "additionalDetails" | "ownerName" | "ownerPhone" | "status" | "rentAmount" | "forSale" | "listed" | "fileAttachments" | "createdAt" | "updatedAt", ExtArgs["result"]["property"]>
 export type PropertyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   tenants?: boolean | Prisma.Property$tenantsArgs<ExtArgs>
   documents?: boolean | Prisma.Property$documentsArgs<ExtArgs>
@@ -2352,6 +2392,7 @@ export type $PropertyPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     rentAmount: runtime.Decimal | null
     forSale: boolean
     listed: boolean
+    fileAttachments: runtime.JsonValue | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["property"]>
@@ -2814,6 +2855,7 @@ export interface PropertyFieldRefs {
   readonly rentAmount: Prisma.FieldRef<"Property", 'Decimal'>
   readonly forSale: Prisma.FieldRef<"Property", 'Boolean'>
   readonly listed: Prisma.FieldRef<"Property", 'Boolean'>
+  readonly fileAttachments: Prisma.FieldRef<"Property", 'Json'>
   readonly createdAt: Prisma.FieldRef<"Property", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Property", 'DateTime'>
 }

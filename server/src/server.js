@@ -3,7 +3,8 @@ import express from "express";
 import cors from "cors";
 import { prisma } from "./prisma.js";
 import { registerAuth, requireAdmin, logAudit } from "./auth.js";
-import { auditMiddleware, apiLimiter, securityHeaders, requestLogger, errorHandler } from "../middleware.js";
+import { auditMiddleware, apiLimiter, uploadLimiter, securityHeaders, requestLogger, errorHandler } from "../middleware.js";
+import { readStoredFile, storeUploadedFile } from "./fileStorage.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -32,6 +33,20 @@ app.use(apiLimiter);
 registerAuth(app, prisma);
 app.use(["/api/properties", "/api/tenants", "/api/rent-records", "/api/bills", "/api/maintenance", "/api/storage", "/api/notifications", "/api/data"], requireAdmin);
 
+app.post("/api/files", requireAdmin, uploadLimiter, express.raw({ type: "application/octet-stream", limit: "10mb" }), async (req, res, next) => {
+  try {
+    const file = await storeUploadedFile(req.query.name, req.body);
+    res.status(201).json(file);
+  } catch (error) { next(error); }
+});
+app.get("/api/files/:id", requireAdmin, async (req, res, next) => {
+  try {
+    const file = await readStoredFile(req.params.id);
+    if (!file) return res.status(404).json({ message: "File not found." });
+    res.set({ "Content-Type": file.mimeType, "Content-Disposition": "inline", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" });
+    res.send(file.data);
+  } catch (error) { next(error); }
+});
 function requireFields(res, ...values) {
   if (values.some((value) => !value)) {
     res.status(400).json({ message: "Required fields are missing." });
@@ -47,7 +62,13 @@ function propertyData(body) {
     expectedPrice: nullableNumber(body.expectedPrice), pricePerSqft: nullableNumber(body.pricePerSqft), totalFloors: nullableInt(body.totalFloors), floorNumber: nullableText(body.floorNumber), flatType: nullableText(body.flatType), flatsCount: nullableInt(body.flatsCount) ?? 1,
     length: nullableNumber(body.length), width: nullableNumber(body.width), carpetArea: nullableNumber(body.carpetArea), builtupArea: nullableNumber(body.builtupArea), plotArea: nullableNumber(body.plotArea),
     facingRoad: nullableText(body.facingRoad), landUse: nullableText(body.landUse), direction: nullableText(body.direction), furnished: nullableText(body.furnished), additionalDetails: nullableText(body.additionalDetails), forSale: Boolean(body.forSale), listed: Boolean(body.listed),
+    fileAttachments: { ownerDocuments: body.ownerDocuments || {}, ownerDocumentsList: body.ownerDocumentsList || [], propertyDocumentsList: body.propertyDocumentsList || [] },
   };
+}
+
+function propertyResponse(property) {
+  const { fileAttachments, ...data } = property;
+  return { ...data, ...(fileAttachments || {}) };
 }
 
 function tenantData(body) {
@@ -56,7 +77,13 @@ function tenantData(body) {
     livingInHouse: nullableText(body.livingInHouse), education: nullableText(body.education), occupation: nullableText(body.occupation), religion: nullableText(body.religion), email: nullableText(body.email), nativeAddress: nullableText(body.nativeAddress), workAddress: nullableText(body.workAddress),
     familyCount: nullableInt(body.familyCount) ?? 0, rehotraType: nullableText(body.rehotraType), rehotraNumber: nullableText(body.rehotraNumber), rentAmount: nullableNumber(body.rentAmount), advanceAmount: nullableNumber(body.advanceAmount), maintenanceFee: nullableNumber(body.maintenanceFee), brokerageFee: nullableNumber(body.brokerageFee),
     dateOfComing: nullableDate(body.dateOfComing), dateOfLeaving: nullableDate(body.dateOfLeaving), profilePhoto: nullableText(body.profilePhoto), status: body.status || "Active",
+    fileAttachments: { documents: body.documents || {}, documentsList: body.documentsList || [] },
   };
+}
+
+function tenantResponse(tenant) {
+  const { fileAttachments, ...data } = tenant;
+  return { ...data, ...(fileAttachments || {}) };
 }
 
 app.get("/api/health", async (req, res) => {
@@ -67,8 +94,8 @@ app.get("/api/health", async (req, res) => {
 app.get("/api/data", async (req, res, next) => {
   try {
     const [properties, tenants, bills, maintenance, notifications] = await Promise.all([
-      prisma.property.findMany({ orderBy: { createdAt: "desc" } }),
-      prisma.tenant.findMany({ include: tenantInclude, orderBy: { createdAt: "desc" } }),
+      prisma.property.findMany({ orderBy: { createdAt: "desc" } }).then((items) => items.map(propertyResponse)),
+      prisma.tenant.findMany({ include: tenantInclude, orderBy: { createdAt: "desc" } }).then((items) => items.map(tenantResponse)),
       prisma.bill.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.maintenance.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.notification.findMany({ orderBy: { createdAt: "desc" } }),
@@ -77,16 +104,16 @@ app.get("/api/data", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-app.get("/api/properties", async (req, res, next) => { try { res.json(await prisma.property.findMany({ orderBy: { createdAt: "desc" } })); } catch (error) { next(error); } });
+app.get("/api/properties", async (req, res, next) => { try { res.json((await prisma.property.findMany({ orderBy: { createdAt: "desc" } })).map(propertyResponse)); } catch (error) { next(error); } });
 app.post("/api/properties", async (req, res, next) => {
-  try { const data = propertyData(req.body); if (!requireFields(res, data.name, data.address, data.ownerName, data.ownerPhone)) return; res.status(201).json(await prisma.property.create({ data })); } catch (error) { next(error); }
+  try { const data = propertyData(req.body); if (!requireFields(res, data.name, data.address, data.ownerName, data.ownerPhone)) return; res.status(201).json(propertyResponse(await prisma.property.create({ data }))); } catch (error) { next(error); }
 });
 app.put("/api/properties/:id", async (req, res, next) => {
-  try { const data = propertyData(req.body); if (!requireFields(res, data.name, data.address, data.ownerName, data.ownerPhone)) return; res.json(await prisma.property.update({ where: { id: req.params.id }, data })); } catch (error) { next(error); }
+  try { const data = propertyData(req.body); if (!requireFields(res, data.name, data.address, data.ownerName, data.ownerPhone)) return; res.json(propertyResponse(await prisma.property.update({ where: { id: req.params.id }, data }))); } catch (error) { next(error); }
 });
 app.delete("/api/properties/:id", async (req, res, next) => { try { await prisma.property.delete({ where: { id: req.params.id } }); res.status(204).end(); } catch (error) { next(error); } });
 
-app.get("/api/tenants", async (req, res, next) => { try { res.json(await prisma.tenant.findMany({ include: tenantInclude, orderBy: { createdAt: "desc" } })); } catch (error) { next(error); } });
+app.get("/api/tenants", async (req, res, next) => { try { res.json((await prisma.tenant.findMany({ include: tenantInclude, orderBy: { createdAt: "desc" } })).map(tenantResponse)); } catch (error) { next(error); } });
 app.post("/api/tenants", async (req, res, next) => {
   try {
     const data = tenantData(req.body); if (!requireFields(res, data.propertyId, data.fullName, data.phone)) return;
@@ -102,7 +129,7 @@ app.post("/api/tenants", async (req, res, next) => {
         include: tenantInclude,
       });
       await tx.property.update({ where: { id: data.propertyId }, data: { status: "Occupied" } });
-      return created;
+      return tenantResponse(created);
     });
     res.status(201).json(tenant);
   } catch (error) { next(error); }
@@ -114,11 +141,11 @@ app.put("/api/tenants/:id", async (req, res, next) => {
       await tx.familyMember.deleteMany({ where: { tenantId: req.params.id } });
       return tx.tenant.update({ where: { id: req.params.id }, data: { ...data, familyMembers: { create: (req.body.familyMembers || []).filter((member) => member.name?.trim()).map((member) => ({ relation: nullableText(member.relation), name: member.name.trim(), phone: nullableText(member.phone) })) } }, include: tenantInclude });
     });
-    res.json(tenant);
+    res.json(tenantResponse(tenant));
   } catch (error) { next(error); }
 });
 app.patch("/api/tenants/:id/status", async (req, res, next) => {
-  try { const archived = req.body.status === "Archived"; res.json(await prisma.tenant.update({ where: { id: req.params.id }, data: { status: archived ? "Archived" : "Active", dateOfLeaving: archived ? new Date() : null }, include: tenantInclude })); } catch (error) { next(error); }
+  try { const archived = req.body.status === "Archived"; res.json(tenantResponse(await prisma.tenant.update({ where: { id: req.params.id }, data: { status: archived ? "Archived" : "Active", dateOfLeaving: archived ? new Date() : null }, include: tenantInclude }))); } catch (error) { next(error); }
 });
 app.delete("/api/tenants/:id", async (req, res, next) => { try { await prisma.tenant.delete({ where: { id: req.params.id } }); res.status(204).end(); } catch (error) { next(error); } });
 

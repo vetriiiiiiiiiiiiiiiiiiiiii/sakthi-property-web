@@ -127,6 +127,7 @@ export type TenantCountAggregateOutputType = {
   dateOfComing: number
   dateOfLeaving: number
   profilePhoto: number
+  fileAttachments: number
   status: number
   createdAt: number
   updatedAt: number
@@ -235,6 +236,7 @@ export type TenantCountAggregateInputType = {
   dateOfComing?: true
   dateOfLeaving?: true
   profilePhoto?: true
+  fileAttachments?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -352,6 +354,7 @@ export type TenantGroupByOutputType = {
   dateOfComing: Date | null
   dateOfLeaving: Date | null
   profilePhoto: string | null
+  fileAttachments: runtime.JsonValue | null
   status: string
   createdAt: Date
   updatedAt: Date
@@ -405,6 +408,7 @@ export type TenantWhereInput = {
   dateOfComing?: Prisma.DateTimeNullableFilter<"Tenant"> | Date | string | null
   dateOfLeaving?: Prisma.DateTimeNullableFilter<"Tenant"> | Date | string | null
   profilePhoto?: Prisma.StringNullableFilter<"Tenant"> | string | null
+  fileAttachments?: Prisma.JsonNullableFilter<"Tenant">
   status?: Prisma.StringFilter<"Tenant"> | string
   createdAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
@@ -439,6 +443,7 @@ export type TenantOrderByWithRelationInput = {
   dateOfComing?: Prisma.SortOrderInput | Prisma.SortOrder
   dateOfLeaving?: Prisma.SortOrderInput | Prisma.SortOrder
   profilePhoto?: Prisma.SortOrderInput | Prisma.SortOrder
+  fileAttachments?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -476,6 +481,7 @@ export type TenantWhereUniqueInput = Prisma.AtLeast<{
   dateOfComing?: Prisma.DateTimeNullableFilter<"Tenant"> | Date | string | null
   dateOfLeaving?: Prisma.DateTimeNullableFilter<"Tenant"> | Date | string | null
   profilePhoto?: Prisma.StringNullableFilter<"Tenant"> | string | null
+  fileAttachments?: Prisma.JsonNullableFilter<"Tenant">
   status?: Prisma.StringFilter<"Tenant"> | string
   createdAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
@@ -510,6 +516,7 @@ export type TenantOrderByWithAggregationInput = {
   dateOfComing?: Prisma.SortOrderInput | Prisma.SortOrder
   dateOfLeaving?: Prisma.SortOrderInput | Prisma.SortOrder
   profilePhoto?: Prisma.SortOrderInput | Prisma.SortOrder
+  fileAttachments?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -548,6 +555,7 @@ export type TenantScalarWhereWithAggregatesInput = {
   dateOfComing?: Prisma.DateTimeNullableWithAggregatesFilter<"Tenant"> | Date | string | null
   dateOfLeaving?: Prisma.DateTimeNullableWithAggregatesFilter<"Tenant"> | Date | string | null
   profilePhoto?: Prisma.StringNullableWithAggregatesFilter<"Tenant"> | string | null
+  fileAttachments?: Prisma.JsonNullableWithAggregatesFilter<"Tenant">
   status?: Prisma.StringWithAggregatesFilter<"Tenant"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Tenant"> | Date | string
@@ -577,6 +585,7 @@ export type TenantCreateInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -611,6 +620,7 @@ export type TenantUncheckedCreateInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -643,6 +653,7 @@ export type TenantUpdateInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -677,6 +688,7 @@ export type TenantUncheckedUpdateInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -710,6 +722,7 @@ export type TenantCreateManyInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -739,6 +752,7 @@ export type TenantUpdateManyMutationInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -769,6 +783,7 @@ export type TenantUncheckedUpdateManyInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -809,6 +824,7 @@ export type TenantCountOrderByAggregateInput = {
   dateOfComing?: Prisma.SortOrder
   dateOfLeaving?: Prisma.SortOrder
   profilePhoto?: Prisma.SortOrder
+  fileAttachments?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -1003,6 +1019,7 @@ export type TenantCreateWithoutPropertyInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1035,6 +1052,7 @@ export type TenantUncheckedCreateWithoutPropertyInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1097,6 +1115,7 @@ export type TenantScalarWhereInput = {
   dateOfComing?: Prisma.DateTimeNullableFilter<"Tenant"> | Date | string | null
   dateOfLeaving?: Prisma.DateTimeNullableFilter<"Tenant"> | Date | string | null
   profilePhoto?: Prisma.StringNullableFilter<"Tenant"> | string | null
+  fileAttachments?: Prisma.JsonNullableFilter<"Tenant">
   status?: Prisma.StringFilter<"Tenant"> | string
   createdAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Tenant"> | Date | string
@@ -1126,6 +1145,7 @@ export type TenantCreateWithoutFamilyMembersInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1159,6 +1179,7 @@ export type TenantUncheckedCreateWithoutFamilyMembersInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1206,6 +1227,7 @@ export type TenantUpdateWithoutFamilyMembersInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1239,6 +1261,7 @@ export type TenantUncheckedUpdateWithoutFamilyMembersInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1270,6 +1293,7 @@ export type TenantCreateWithoutDocumentsInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1303,6 +1327,7 @@ export type TenantUncheckedCreateWithoutDocumentsInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1350,6 +1375,7 @@ export type TenantUpdateWithoutDocumentsInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1383,6 +1409,7 @@ export type TenantUncheckedUpdateWithoutDocumentsInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1414,6 +1441,7 @@ export type TenantCreateWithoutRentHistoryInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1447,6 +1475,7 @@ export type TenantUncheckedCreateWithoutRentHistoryInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1494,6 +1523,7 @@ export type TenantUpdateWithoutRentHistoryInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1527,6 +1557,7 @@ export type TenantUncheckedUpdateWithoutRentHistoryInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1558,6 +1589,7 @@ export type TenantCreateManyPropertyInput = {
   dateOfComing?: Date | string | null
   dateOfLeaving?: Date | string | null
   profilePhoto?: string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1587,6 +1619,7 @@ export type TenantUpdateWithoutPropertyInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1619,6 +1652,7 @@ export type TenantUncheckedUpdateWithoutPropertyInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1651,6 +1685,7 @@ export type TenantUncheckedUpdateManyWithoutPropertyInput = {
   dateOfComing?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   dateOfLeaving?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fileAttachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1730,6 +1765,7 @@ export type TenantSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   dateOfComing?: boolean
   dateOfLeaving?: boolean
   profilePhoto?: boolean
+  fileAttachments?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1765,6 +1801,7 @@ export type TenantSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   dateOfComing?: boolean
   dateOfLeaving?: boolean
   profilePhoto?: boolean
+  fileAttachments?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1796,6 +1833,7 @@ export type TenantSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   dateOfComing?: boolean
   dateOfLeaving?: boolean
   profilePhoto?: boolean
+  fileAttachments?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1827,12 +1865,13 @@ export type TenantSelectScalar = {
   dateOfComing?: boolean
   dateOfLeaving?: boolean
   profilePhoto?: boolean
+  fileAttachments?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type TenantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "propertyId" | "fullName" | "dob" | "gender" | "maritalStatus" | "livingInHouse" | "education" | "occupation" | "religion" | "phone" | "email" | "nativeAddress" | "workAddress" | "familyCount" | "rehotraType" | "rehotraNumber" | "rentAmount" | "advanceAmount" | "maintenanceFee" | "brokerageFee" | "dateOfComing" | "dateOfLeaving" | "profilePhoto" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["tenant"]>
+export type TenantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "propertyId" | "fullName" | "dob" | "gender" | "maritalStatus" | "livingInHouse" | "education" | "occupation" | "religion" | "phone" | "email" | "nativeAddress" | "workAddress" | "familyCount" | "rehotraType" | "rehotraNumber" | "rentAmount" | "advanceAmount" | "maintenanceFee" | "brokerageFee" | "dateOfComing" | "dateOfLeaving" | "profilePhoto" | "fileAttachments" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["tenant"]>
 export type TenantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   property?: boolean | Prisma.PropertyDefaultArgs<ExtArgs>
   documents?: boolean | Prisma.Tenant$documentsArgs<ExtArgs>
@@ -1880,6 +1919,7 @@ export type $TenantPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     dateOfComing: Date | null
     dateOfLeaving: Date | null
     profilePhoto: string | null
+    fileAttachments: runtime.JsonValue | null
     status: string
     createdAt: Date
     updatedAt: Date
@@ -2334,6 +2374,7 @@ export interface TenantFieldRefs {
   readonly dateOfComing: Prisma.FieldRef<"Tenant", 'DateTime'>
   readonly dateOfLeaving: Prisma.FieldRef<"Tenant", 'DateTime'>
   readonly profilePhoto: Prisma.FieldRef<"Tenant", 'String'>
+  readonly fileAttachments: Prisma.FieldRef<"Tenant", 'Json'>
   readonly status: Prisma.FieldRef<"Tenant", 'String'>
   readonly createdAt: Prisma.FieldRef<"Tenant", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Tenant", 'DateTime'>

@@ -94,6 +94,7 @@ model Property {
 
   forSale            Boolean            @default(false)
   listed             Boolean            @default(false)
+  fileAttachments    Json?
 
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -152,6 +153,7 @@ model Tenant {
   dateOfLeaving  DateTime?
 
   profilePhoto   String?
+  fileAttachments Json?
 
   status         String   @default("Active")
 

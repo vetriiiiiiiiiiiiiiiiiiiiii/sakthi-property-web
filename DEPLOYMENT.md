@@ -70,6 +70,8 @@ sudo git clone https://github.com/vetriiiiiiiiiiiiiiiiiiiiii/sakthi-property-web
 sudo chown -R sakthi-property:sakthi-property /opt/sakthi-property-web
 sudo install -d -o sakthi-property -g sakthi-property -m 0750 \
   /opt/sakthi-property-web/server/logs
+sudo install -d -o sakthi-property -g sakthi-property -m 0750 \
+  /var/lib/sakthi-property/uploads
 cd /opt/sakthi-property-web
 sudo -u sakthi-property npm ci
 sudo -u sakthi-property npm ci --include=dev --prefix server
@@ -105,6 +107,7 @@ DATABASE_URL=postgresql://sakthi_app:DB_PASSWORD@127.0.0.1:5432/sakthi_property?
 AUTH_SECRET=REPLACE_WITH_A_RANDOM_SECRET
 AUTH_SETUP_KEY=TEMPORARY_RANDOM_SETUP_KEY
 CLIENT_ORIGINS=https://YOUR_DOMAIN
+FILE_STORAGE_DIR=/var/lib/sakthi-property/uploads
 GOOGLE_CLIENT_ID=
 GOOGLE_AUTO_PROVISION=false
 GOOGLE_ALLOWED_EMAIL_DOMAINS=
@@ -228,8 +231,13 @@ Resend.
 
 ## Updates and backups
 
-Back up PostgreSQL to secure off-server storage before deploying updates. Test
-restores periodically. Update the checkout and rebuild:
+Back up PostgreSQL and `/var/lib/sakthi-property/uploads` to secure off-server
+storage before deploying updates. The uploads directory is private to the API
+service and is not served directly by Nginx. Test restores periodically. Update
+the checkout and rebuild. For an existing installation, add
+`FILE_STORAGE_DIR=/var/lib/sakthi-property/uploads` to
+`/etc/sakthi-property/server.env`; install the upload directory and updated
+systemd unit as shown below:
 
 ```sh
 cd /opt/sakthi-property-web
@@ -240,6 +248,12 @@ sudo -u sakthi-property npm ci --include=dev --prefix server
 sudo -u sakthi-property sh -c \
   'set -a; . /etc/sakthi-property/server.env; set +a; cd /opt/sakthi-property-web/server && npx prisma migrate deploy'
 sudo -u sakthi-property npm prune --omit=dev --prefix server
+sudo install -d -o sakthi-property -g sakthi-property -m 0750 \
+  /var/lib/sakthi-property/uploads
+sudo install -o root -g root -m 0644 \
+  /opt/sakthi-property-web/deploy/sakthi-property-api.service \
+  /etc/systemd/system/sakthi-property-api.service
+sudo systemctl daemon-reload
 sudo systemctl restart sakthi-property-api
 sudo systemctl status sakthi-property-api
 ```

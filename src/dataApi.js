@@ -23,6 +23,21 @@ export async function loadRemoteData() {
   const data = await request('/api/data');
   return { ...data, bills: (data.bills || []).map(normalizeBill) };
 }
+export async function uploadFile(file) {
+  const response = await fetch(`${API_BASE}/api/files?name=${encodeURIComponent(file.name)}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: file,
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(body.message || `Upload failed (${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
+  return { ...body, fileUrl: `${API_BASE}${body.fileUrl}` };
+}
 export const createProperty = (value) => request('/api/properties', json('POST', value));
 export const updateProperty = (id, value) => request(`/api/properties/${id}`, json('PUT', value));
 export const removeProperty = (id) => request(`/api/properties/${id}`, { method: 'DELETE' });

@@ -4,7 +4,7 @@ import AuthShell from './AuthPages';
 import { fetchCurrentUser, logout as apiLogout } from './authApi';
 import {
   createBill, createMaintenance, createProperty, createRentRecord, createTenant,
-  loadRemoteData, removeProperty, setTenantStatus, updateBill, updateMaintenance,
+  loadRemoteData, removeProperty, setTenantStatus, updateBill, updateMaintenance, uploadFile,
   updateProperty as persistProperty, updateRentRecord, updateTenant as persistTenant,
 } from './dataApi';
 
@@ -115,16 +115,16 @@ function downloadTextFile(filename, text, mime = 'text/plain') {
 }
 
 function downloadDocument(doc) {
-  if (!doc?.dataUrl) return;
+  if (!doc?.dataUrl && !doc?.fileUrl) return;
   const a = document.createElement('a');
-  a.href = doc.dataUrl;
+  a.href = doc.fileUrl || doc.dataUrl;
   a.download = doc.name || 'document';
   document.body.appendChild(a);
   a.click();
   a.remove();
 }
 
-function viewableDocument(doc) { return !!(doc && doc.dataUrl); }
+function viewableDocument(doc) { return !!(doc && (doc.dataUrl || doc.fileUrl)); }
 
 const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
@@ -155,10 +155,14 @@ function validateUpload(file, { imageOnly = false, maxBytes = DOCUMENT_MAX_BYTES
   return '';
 }
 
-function makeDocumentRecord(file, options = {}) {
-  return new Promise((resolve) => {
-    const error = validateUpload(file, options);
-    if (error) { resolve(null); return; }
+async function makeDocumentRecord(file, options = {}) {
+  const error = validateUpload(file, options);
+  if (error) throw new Error(error);
+  if (!STANDALONE_MODE) {
+    const uploaded = await uploadFile(file);
+    return { ...uploaded, name: safeFileName(file.name), uploadedAt: new Date().toISOString() };
+  }
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve({
       id: uid(),
@@ -168,7 +172,7 @@ function makeDocumentRecord(file, options = {}) {
       dataUrl: reader.result,
       uploadedAt: new Date().toISOString(),
     });
-    reader.onerror = () => resolve(null);
+    reader.onerror = () => reject(new Error('Could not read the selected file.'));
     reader.readAsDataURL(file);
   });
 }
@@ -356,14 +360,15 @@ export function downloadTenantDetailsPDF(tenant, property) {
 
 function DocumentViewer({ documentRecord, title, onClose }) {
   const doc = normalizeDocumentValue(documentRecord);
+  const fileUrl = doc?.fileUrl || doc?.dataUrl;
   return (
     <Modal title={title} onClose={onClose} wide>
-      {!doc || !doc.dataUrl ? (
+      {!doc || !fileUrl ? (
         <EmptyState text={doc?.legacy ? 'This document is recorded, but the original file is not stored.' : 'No document file attached.'} />
       ) : (
         <div className="document-preview">
-          {doc.type?.startsWith('image/') ? <img src={doc.dataUrl} alt={doc.name} />
-            : doc.type === 'application/pdf' ? <iframe title={doc.name} src={doc.dataUrl} />
+          {doc.type?.startsWith('image/') ? <img src={fileUrl} alt={doc.name} />
+            : doc.type === 'application/pdf' ? <iframe title={doc.name} src={fileUrl} />
             : <div className="document-file-fallback"><Icon name="file" size={30} /><p>{doc.name}</p><p className="muted small">Preview is unavailable for this file type.</p></div>}
           <div className="document-preview-actions">
             <button className="btn btn-primary" onClick={() => downloadDocument(doc)}><Icon name="download" size={15} /> Download document</button>
@@ -658,14 +663,14 @@ function DocumentManager({ title, documents, onChange, pushToast, imageOnly = fa
       setStatus(error);
       return;
     }
-    const record = await makeDocumentRecord(file, { imageOnly, maxBytes: imageOnly ? PROFILE_PHOTO_MAX_BYTES : DOCUMENT_MAX_BYTES });
-    if (!record) {
-      setStatus('Could not read the selected file.');
-      return;
+    try {
+      const record = await makeDocumentRecord(file, { imageOnly, maxBytes: imageOnly ? PROFILE_PHOTO_MAX_BYTES : DOCUMENT_MAX_BYTES });
+      const named = { ...record, name: safeFileName(draftName || record.name) };
+      onChange([...docs, named]);
+      setDraftName('');
+    } catch (uploadError) {
+      setStatus(uploadError.message || 'Could not upload the selected file.');
     }
-    const named = { ...record, name: safeFileName(draftName || record.name) };
-    onChange([...docs, named]);
-    setDraftName('');
   }
 
   function remove(id) {
@@ -708,7 +713,7 @@ function DocumentManager({ title, documents, onChange, pushToast, imageOnly = fa
               <div className="document-manager-info"><span className="document-manager-index">{index + 1}</span><Icon name="file" size={18}/><div><strong>{doc.name}</strong><small>{doc.legacy ? 'Legacy record' : `${documentStatus(doc)}${doc.size ? ` · ${(doc.size / 1024 / 1024).toFixed(1)} MB` : ''}`}</small></div></div>
               <div className="document-manager-actions">
                 {viewableDocument(doc) && <button type="button" className="btn btn-xs btn-outline" onClick={() => setPreview({ doc, title: doc.name })}>View</button>}
-                {doc?.dataUrl && <button type="button" className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}><Icon name="download" size={12}/> Download</button>}
+                {viewableDocument(doc) && <button type="button" className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}><Icon name="download" size={12}/> Download</button>}
                 <button type="button" className="btn btn-xs btn-outline" onClick={() => remove(doc.id)} aria-label={`Remove ${doc.name}`}><Icon name="trash" size={12}/></button>
               </div>
             </div>
@@ -915,8 +920,18 @@ function TenantForm({ initial, properties, onSave, onCancel, pushToast }) {
   const [propertySearch, setPropertySearch] = useState('');
 
   function set(f, v) { setForm((s) => ({ ...s, [f]: v })); }
-  async function setDoc(k, event) { const rec = await makeDocumentRecord(event.target.files?.[0]); if (rec) setForm((s) => ({ ...s, documents: { ...s.documents, [k]: rec } })); }
-  async function setProfilePhoto(event) { const rec = await makeDocumentRecord(event.target.files?.[0], { imageOnly: true, maxBytes: PROFILE_PHOTO_MAX_BYTES }); if (rec?.dataUrl) setTenantPhoto(rec.dataUrl); }
+  async function setDoc(k, event) {
+    try {
+      const rec = await makeDocumentRecord(event.target.files?.[0]);
+      setForm((s) => ({ ...s, documents: { ...s.documents, [k]: rec } }));
+    } catch (error) { pushToast(error.message || 'Could not upload the selected file.', 'danger'); }
+  }
+  async function setProfilePhoto(event) {
+    try {
+      const rec = await makeDocumentRecord(event.target.files?.[0], { imageOnly: true, maxBytes: PROFILE_PHOTO_MAX_BYTES });
+      setTenantPhoto(rec.fileUrl || rec.dataUrl);
+    } catch (error) { pushToast(error.message || 'Could not upload the selected photo.', 'danger'); }
+  }
   function addMember() { if (!memberDraft.name) return; setForm((s) => ({ ...s, familyMembers: [...s.familyMembers, memberDraft], familyCount: s.familyMembers.length + 1 })); setMemberDraft({ relation: '', name: '', phone: '' }); }
   function removeMember(i) { setForm((s) => ({ ...s, familyMembers: s.familyMembers.filter((_, idx) => idx !== i), familyCount: Math.max(0, s.familyMembers.length - 1) })); }
 
@@ -1485,19 +1500,19 @@ export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, o
                   <div className="detail-card"><h4>Property & owner</h4><p><b>Property:</b> {property?.name || '—'}</p><p><b>Address:</b> {property?.address || '—'}</p><p><b>Owner:</b> {property?.ownerName || '—'}</p><p><b>Owner phone:</b> {property?.ownerPhone || '—'}</p><p><b>Tax number:</b> {property?.taxNumber || '—'}</p><p><b>EB number:</b> {property?.ebNumber || '—'}</p></div>
               <div className="detail-card"><h4>Financial details</h4><p><b>Rent:</b> {formatCurrency(detailOf.rentAmount)}</p><p><b>Advance:</b> {formatCurrency(detailOf.advanceAmount)}</p><p><b>Maintenance:</b> {formatCurrency(detailOf.maintenanceFee)}</p><p><b>Brokerage:</b> {formatCurrency(detailOf.brokerageFee)}</p></div>
               <div className="detail-card"><h4>Tenant documents</h4>
-                {[['idProof','ID proof'],['addressProof','Address proof'],['panProof','PAN proof']].map(([key,label]) => { const doc=normalizeDocumentValue(docs[key]); return <div className="doc-view-row" key={key}><span>{label} — {documentStatus(doc)}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${detailOf.fullName} — ${label}`})}>View</button>} {doc?.dataUrl && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>; })}
+                {[['idProof','ID proof'],['addressProof','Address proof'],['panProof','PAN proof']].map(([key,label]) => { const doc=normalizeDocumentValue(docs[key]); return <div className="doc-view-row" key={key}><span>{label} — {documentStatus(doc)}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${detailOf.fullName} — ${label}`})}>View</button>} {viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>; })}
               </div>
               <div className="detail-card"><h4>Additional tenant documents</h4>
-                {(detailOf.documentsList || []).length === 0 ? <p className="muted">No additional documents uploaded.</p> : detailOf.documentsList.map((doc) => <div className="doc-view-row" key={doc.id || doc.name}><span>{doc.name}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${detailOf.fullName} — ${doc.name}`})}>View</button>} {doc?.dataUrl && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>)}
+                {(detailOf.documentsList || []).length === 0 ? <p className="muted">No additional documents uploaded.</p> : detailOf.documentsList.map((doc) => <div className="doc-view-row" key={doc.id || doc.name}><span>{doc.name}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${detailOf.fullName} — ${doc.name}`})}>View</button>} {viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>)}
               </div>
               <div className="detail-card"><h4>Property owner documents</h4>
-                {['identity','ownership','addressProof'].map((key) => { const labels={identity:'Owner ID proof',ownership:'Ownership / title document',addressProof:'Owner address proof'}; const doc=normalizeDocumentValue(property?.ownerDocuments?.[key]); return <div className="doc-view-row" key={key}><span>{labels[key]} — {documentStatus(doc)}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${property?.ownerName || 'Owner'} — ${labels[key]}`})}>View</button>} {doc?.dataUrl && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>; })}
+                {['identity','ownership','addressProof'].map((key) => { const labels={identity:'Owner ID proof',ownership:'Ownership / title document',addressProof:'Owner address proof'}; const doc=normalizeDocumentValue(property?.ownerDocuments?.[key]); return <div className="doc-view-row" key={key}><span>{labels[key]} — {documentStatus(doc)}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${property?.ownerName || 'Owner'} — ${labels[key]}`})}>View</button>} {viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>; })}
               </div>
               <div className="detail-card"><h4>Additional owner documents</h4>
-                {(property?.ownerDocumentsList || []).length === 0 ? <p className="muted">No additional owner documents uploaded.</p> : property.ownerDocumentsList.map((doc) => <div className="doc-view-row" key={doc.id || doc.name}><span>{doc.name}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${property?.ownerName || 'Owner'} — ${doc.name}`})}>View</button>} {doc?.dataUrl && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>)}
+                {(property?.ownerDocumentsList || []).length === 0 ? <p className="muted">No additional owner documents uploaded.</p> : property.ownerDocumentsList.map((doc) => <div className="doc-view-row" key={doc.id || doc.name}><span>{doc.name}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${property?.ownerName || 'Owner'} — ${doc.name}`})}>View</button>} {viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>)}
               </div>
               <div className="detail-card"><h4>Property documents</h4>
-                {(property?.propertyDocumentsList || []).length === 0 ? <p className="muted">No additional property documents uploaded.</p> : property.propertyDocumentsList.map((doc) => <div className="doc-view-row" key={doc.id || doc.name}><span>{doc.name}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${property.name} — ${doc.name}`})}>View</button>} {doc?.dataUrl && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>)}
+                {(property?.propertyDocumentsList || []).length === 0 ? <p className="muted">No additional property documents uploaded.</p> : property.propertyDocumentsList.map((doc) => <div className="doc-view-row" key={doc.id || doc.name}><span>{doc.name}</span><span className="doc-actions">{viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => setViewDocument({doc,title:`${property.name} — ${doc.name}`})}>View</button>} {viewableDocument(doc) && <button className="btn btn-xs btn-outline" onClick={() => downloadDocument(doc)}>Download</button>}</span></div>)}
               </div>
               <div className="detail-card"><h4>Previous tenants for this property</h4>
                 {previousTenants.length === 0 ? <p className="muted">No previous tenant records for this property.</p> : previousTenants.map((prev) => <div className="previous-tenant-row" key={prev.id}><span><b>{prev.fullName}</b><small>{formatDate(prev.dateOfComing)} → {formatDate(prev.dateOfLeaving)}</small></span><div className="row-actions"><button className="btn btn-xs btn-outline" onClick={() => setDetailOf(prev)}>View</button><button className="btn btn-xs btn-outline" aria-label={`Download ${prev.fullName} details PDF`} onClick={() => downloadTenantDetailsPDF(prev, property)}><Icon name="download" size={13}/> PDF</button></div></div>)}
@@ -1918,7 +1933,12 @@ function SettingsPage({ managers, onAddManager, onRemoveManager, properties, onT
                 <strong>Admin profile photo</strong>
                 <span>JPG, PNG or WEBP</span>
                 <label className="file-upload-btn btn btn-outline btn-sm">
-                  <input type="file" accept="image/*" onChange={async (e) => { const rec = await makeDocumentRecord(e.target.files?.[0], { imageOnly: true, maxBytes: PROFILE_PHOTO_MAX_BYTES }); if (rec?.dataUrl) setProfile((p) => ({ ...p, profilePhoto: rec.dataUrl })); }} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (e) => {
+                    try {
+                      const rec = await makeDocumentRecord(e.target.files?.[0], { imageOnly: true, maxBytes: PROFILE_PHOTO_MAX_BYTES });
+                      setProfile((p) => ({ ...p, profilePhoto: rec.fileUrl || rec.dataUrl }));
+                    } catch (error) { pushToast(error.message || 'Could not upload the selected photo.', 'danger'); }
+                  }} />
                   {profile.profilePhoto ? 'Change photo' : 'Choose photo'}
                 </label>
               </div>

@@ -39,6 +39,7 @@ export type AdminMinAggregateOutputType = {
   username: string | null
   email: string | null
   passwordHash: string | null
+  googleId: string | null
   profilePhoto: string | null
   failedLoginAttempts: number | null
   lockedUntil: Date | null
@@ -51,6 +52,7 @@ export type AdminMaxAggregateOutputType = {
   username: string | null
   email: string | null
   passwordHash: string | null
+  googleId: string | null
   profilePhoto: string | null
   failedLoginAttempts: number | null
   lockedUntil: Date | null
@@ -63,6 +65,7 @@ export type AdminCountAggregateOutputType = {
   username: number
   email: number
   passwordHash: number
+  googleId: number
   profilePhoto: number
   failedLoginAttempts: number
   lockedUntil: number
@@ -85,6 +88,7 @@ export type AdminMinAggregateInputType = {
   username?: true
   email?: true
   passwordHash?: true
+  googleId?: true
   profilePhoto?: true
   failedLoginAttempts?: true
   lockedUntil?: true
@@ -97,6 +101,7 @@ export type AdminMaxAggregateInputType = {
   username?: true
   email?: true
   passwordHash?: true
+  googleId?: true
   profilePhoto?: true
   failedLoginAttempts?: true
   lockedUntil?: true
@@ -109,6 +114,7 @@ export type AdminCountAggregateInputType = {
   username?: true
   email?: true
   passwordHash?: true
+  googleId?: true
   profilePhoto?: true
   failedLoginAttempts?: true
   lockedUntil?: true
@@ -207,7 +213,8 @@ export type AdminGroupByOutputType = {
   id: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash: string | null
+  googleId: string | null
   profilePhoto: string | null
   failedLoginAttempts: number
   lockedUntil: Date | null
@@ -242,7 +249,8 @@ export type AdminWhereInput = {
   id?: Prisma.StringFilter<"Admin"> | string
   username?: Prisma.StringFilter<"Admin"> | string
   email?: Prisma.StringFilter<"Admin"> | string
-  passwordHash?: Prisma.StringFilter<"Admin"> | string
+  passwordHash?: Prisma.StringNullableFilter<"Admin"> | string | null
+  googleId?: Prisma.StringNullableFilter<"Admin"> | string | null
   profilePhoto?: Prisma.StringNullableFilter<"Admin"> | string | null
   failedLoginAttempts?: Prisma.IntFilter<"Admin"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"Admin"> | Date | string | null
@@ -256,7 +264,8 @@ export type AdminOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
-  passwordHash?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  googleId?: Prisma.SortOrderInput | Prisma.SortOrder
   profilePhoto?: Prisma.SortOrderInput | Prisma.SortOrder
   failedLoginAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -270,10 +279,11 @@ export type AdminWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   username?: string
   email?: string
+  googleId?: string
   AND?: Prisma.AdminWhereInput | Prisma.AdminWhereInput[]
   OR?: Prisma.AdminWhereInput[]
   NOT?: Prisma.AdminWhereInput | Prisma.AdminWhereInput[]
-  passwordHash?: Prisma.StringFilter<"Admin"> | string
+  passwordHash?: Prisma.StringNullableFilter<"Admin"> | string | null
   profilePhoto?: Prisma.StringNullableFilter<"Admin"> | string | null
   failedLoginAttempts?: Prisma.IntFilter<"Admin"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"Admin"> | Date | string | null
@@ -281,13 +291,14 @@ export type AdminWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"Admin"> | Date | string
   sessions?: Prisma.AdminSessionListRelationFilter
   resetCodes?: Prisma.PasswordResetCodeListRelationFilter
-}, "id" | "username" | "email">
+}, "id" | "username" | "email" | "googleId">
 
 export type AdminOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
-  passwordHash?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  googleId?: Prisma.SortOrderInput | Prisma.SortOrder
   profilePhoto?: Prisma.SortOrderInput | Prisma.SortOrder
   failedLoginAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -307,7 +318,8 @@ export type AdminScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"Admin"> | string
   username?: Prisma.StringWithAggregatesFilter<"Admin"> | string
   email?: Prisma.StringWithAggregatesFilter<"Admin"> | string
-  passwordHash?: Prisma.StringWithAggregatesFilter<"Admin"> | string
+  passwordHash?: Prisma.StringNullableWithAggregatesFilter<"Admin"> | string | null
+  googleId?: Prisma.StringNullableWithAggregatesFilter<"Admin"> | string | null
   profilePhoto?: Prisma.StringNullableWithAggregatesFilter<"Admin"> | string | null
   failedLoginAttempts?: Prisma.IntWithAggregatesFilter<"Admin"> | number
   lockedUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"Admin"> | Date | string | null
@@ -319,7 +331,8 @@ export type AdminCreateInput = {
   id?: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash?: string | null
+  googleId?: string | null
   profilePhoto?: string | null
   failedLoginAttempts?: number
   lockedUntil?: Date | string | null
@@ -333,7 +346,8 @@ export type AdminUncheckedCreateInput = {
   id?: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash?: string | null
+  googleId?: string | null
   profilePhoto?: string | null
   failedLoginAttempts?: number
   lockedUntil?: Date | string | null
@@ -347,7 +361,8 @@ export type AdminUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -361,7 +376,8 @@ export type AdminUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -375,7 +391,8 @@ export type AdminCreateManyInput = {
   id?: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash?: string | null
+  googleId?: string | null
   profilePhoto?: string | null
   failedLoginAttempts?: number
   lockedUntil?: Date | string | null
@@ -387,7 +404,8 @@ export type AdminUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -399,7 +417,8 @@ export type AdminUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -412,6 +431,7 @@ export type AdminCountOrderByAggregateInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
+  googleId?: Prisma.SortOrder
   profilePhoto?: Prisma.SortOrder
   failedLoginAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
@@ -428,6 +448,7 @@ export type AdminMaxOrderByAggregateInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
+  googleId?: Prisma.SortOrder
   profilePhoto?: Prisma.SortOrder
   failedLoginAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
@@ -440,6 +461,7 @@ export type AdminMinOrderByAggregateInput = {
   username?: Prisma.SortOrder
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
+  googleId?: Prisma.SortOrder
   profilePhoto?: Prisma.SortOrder
   failedLoginAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
@@ -512,7 +534,8 @@ export type AdminCreateWithoutSessionsInput = {
   id?: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash?: string | null
+  googleId?: string | null
   profilePhoto?: string | null
   failedLoginAttempts?: number
   lockedUntil?: Date | string | null
@@ -525,7 +548,8 @@ export type AdminUncheckedCreateWithoutSessionsInput = {
   id?: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash?: string | null
+  googleId?: string | null
   profilePhoto?: string | null
   failedLoginAttempts?: number
   lockedUntil?: Date | string | null
@@ -554,7 +578,8 @@ export type AdminUpdateWithoutSessionsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -567,7 +592,8 @@ export type AdminUncheckedUpdateWithoutSessionsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -580,7 +606,8 @@ export type AdminCreateWithoutResetCodesInput = {
   id?: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash?: string | null
+  googleId?: string | null
   profilePhoto?: string | null
   failedLoginAttempts?: number
   lockedUntil?: Date | string | null
@@ -593,7 +620,8 @@ export type AdminUncheckedCreateWithoutResetCodesInput = {
   id?: string
   username: string
   email: string
-  passwordHash: string
+  passwordHash?: string | null
+  googleId?: string | null
   profilePhoto?: string | null
   failedLoginAttempts?: number
   lockedUntil?: Date | string | null
@@ -622,7 +650,8 @@ export type AdminUpdateWithoutResetCodesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -635,7 +664,8 @@ export type AdminUncheckedUpdateWithoutResetCodesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   failedLoginAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -689,6 +719,7 @@ export type AdminSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   username?: boolean
   email?: boolean
   passwordHash?: boolean
+  googleId?: boolean
   profilePhoto?: boolean
   failedLoginAttempts?: boolean
   lockedUntil?: boolean
@@ -704,6 +735,7 @@ export type AdminSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   username?: boolean
   email?: boolean
   passwordHash?: boolean
+  googleId?: boolean
   profilePhoto?: boolean
   failedLoginAttempts?: boolean
   lockedUntil?: boolean
@@ -716,6 +748,7 @@ export type AdminSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   username?: boolean
   email?: boolean
   passwordHash?: boolean
+  googleId?: boolean
   profilePhoto?: boolean
   failedLoginAttempts?: boolean
   lockedUntil?: boolean
@@ -728,6 +761,7 @@ export type AdminSelectScalar = {
   username?: boolean
   email?: boolean
   passwordHash?: boolean
+  googleId?: boolean
   profilePhoto?: boolean
   failedLoginAttempts?: boolean
   lockedUntil?: boolean
@@ -735,7 +769,7 @@ export type AdminSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AdminOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "username" | "email" | "passwordHash" | "profilePhoto" | "failedLoginAttempts" | "lockedUntil" | "createdAt" | "updatedAt", ExtArgs["result"]["admin"]>
+export type AdminOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "username" | "email" | "passwordHash" | "googleId" | "profilePhoto" | "failedLoginAttempts" | "lockedUntil" | "createdAt" | "updatedAt", ExtArgs["result"]["admin"]>
 export type AdminInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   sessions?: boolean | Prisma.Admin$sessionsArgs<ExtArgs>
   resetCodes?: boolean | Prisma.Admin$resetCodesArgs<ExtArgs>
@@ -754,7 +788,8 @@ export type $AdminPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     id: string
     username: string
     email: string
-    passwordHash: string
+    passwordHash: string | null
+    googleId: string | null
     profilePhoto: string | null
     failedLoginAttempts: number
     lockedUntil: Date | null
@@ -1189,6 +1224,7 @@ export interface AdminFieldRefs {
   readonly username: Prisma.FieldRef<"Admin", 'String'>
   readonly email: Prisma.FieldRef<"Admin", 'String'>
   readonly passwordHash: Prisma.FieldRef<"Admin", 'String'>
+  readonly googleId: Prisma.FieldRef<"Admin", 'String'>
   readonly profilePhoto: Prisma.FieldRef<"Admin", 'String'>
   readonly failedLoginAttempts: Prisma.FieldRef<"Admin", 'Int'>
   readonly lockedUntil: Prisma.FieldRef<"Admin", 'DateTime'>
