@@ -552,7 +552,7 @@ function Sidebar({ page, setPage, unreadCount, onLogout }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark"><Icon name="home" size={24} /></div>
+        <div className="brand-mark"><img src="/sakthi-property-icon.png" alt="" /></div>
         <div className="brand-copy"><strong>SAKTHI</strong><span>PROPERTY</span><small>Property &amp; Facility Management</small></div>
       </div>
       <nav className="nav" aria-label="Primary navigation">

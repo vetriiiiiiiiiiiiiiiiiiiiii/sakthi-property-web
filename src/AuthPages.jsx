@@ -126,15 +126,12 @@ export function GoogleIcon({ size = 18 }) {
 
 export function SakthiLogo() {
   return (
-    <div className="auth-card-logo" aria-label="Sakthi Property Logo">
-      <div className="auth-card-logo-mark">
-        <AuthIcon name="home" size={24} />
-      </div>
-      <div className="auth-card-logo-text">
-        <span className="brand-name-top">SAKTHI</span>
-        <span className="brand-name-main">PROPERTY</span>
-        <span className="brand-name-tag">FACILITY MANAGEMENT</span>
-      </div>
+    <div className="auth-card-logo">
+      <img
+        className="auth-card-logo-image"
+        src="/sakthi-property-logo.png"
+        alt="Sakthi Property — Building Your Tomorrow"
+      />
     </div>
   );
 }

@@ -7428,6 +7428,28 @@ table td{font-size:.88rem;line-height:1.45;}
   margin-top: 2px !important;
 }
 
+.auth-card-logo {
+  justify-content: center !important;
+  margin-bottom: 18px !important;
+  padding-bottom: 16px !important;
+}
+.auth-card-logo-image {
+  display: block;
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.brand-mark {
+  overflow: hidden;
+}
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .btn-google {
   width: 100% !important;
   min-height: 46px !important;
