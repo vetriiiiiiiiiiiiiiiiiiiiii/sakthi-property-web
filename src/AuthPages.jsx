@@ -353,7 +353,6 @@ export function LoginPage({ onLoginSuccess, onForgotPassword }) {
               <input
                 type="text"
                 name="username"
-                placeholder="e.g. razi"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"

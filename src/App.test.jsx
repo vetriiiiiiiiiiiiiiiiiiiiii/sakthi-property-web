@@ -127,7 +127,7 @@ test('renders login screen when unauthenticated (initialUser={null})', () => {
   render(<App initialUser={null} />);
   expect(screen.getByRole('region', { name: 'Login form' })).toBeDefined();
   expect(screen.getByRole('heading', { name: 'Sign In' })).toBeDefined();
-  expect(screen.getByPlaceholderText('e.g. razi')).toBeDefined();
+  expect(screen.getByLabelText('Username')).toBeDefined();
   expect(screen.getByPlaceholderText('Enter your password')).toBeDefined();
 });
 
@@ -168,5 +168,4 @@ test('logs out and returns to login screen', async () => {
     expect(screen.getByRole('region', { name: 'Login form' })).toBeDefined();
   });
 });
-
 
