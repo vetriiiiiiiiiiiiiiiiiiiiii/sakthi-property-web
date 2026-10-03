@@ -1,0 +1,282 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Admin {
+  id                  String   @id @default(cuid())
+  username            String   @unique
+  email               String   @unique
+  passwordHash        String?
+  googleId            String?  @unique
+  profilePhoto        String?
+
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  sessions             AdminSession[]
+  resetCodes           PasswordResetCode[]
+}
+model AdminSession {
+  id         String   @id @default(cuid())
+  adminId    String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+model PasswordResetCode {
+  id         String   @id @default(cuid())
+  adminId    String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int      @default(0)
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+model Property {
+  id                 String             @id @default(cuid())
+  name               String
+  type               String
+  address            String
+  state              String?
+  city               String?
+  pincode            String?
+  lat                String?
+  lng                String?
+
+  totalFloors        Int?
+  floorNumber        String?
+  flatType           String?
+  flatsCount         Int                @default(1)
+
+  length             Decimal?
+  width              Decimal?
+  carpetArea         Decimal?
+  builtupArea        Decimal?
+  plotArea           Decimal?
+
+  facingRoad         String?
+  landUse            String?
+  expectedPrice      Decimal?
+  pricePerSqft       Decimal?
+  monthlyMaintenance Decimal?
+
+  direction          String?
+  furnished          String?
+  additionalDetails  String?
+
+  ownerName          String
+  ownerPhone         String
+
+  status             String             @default("Available")
+  rentAmount         Decimal?
+
+  forSale            Boolean            @default(false)
+  listed             Boolean            @default(false)
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  tenants            Tenant[]
+  documents          PropertyDocument[]
+  bills              Bill[]
+  maintenance        Maintenance[]
+  storageFees        StorageFee[]
+}
+
+model PropertyDocument {
+  id         String   @id @default(cuid())
+  propertyId String
+  name       String
+  fileUrl    String
+  mimeType   String
+  fileSize   Int?
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model Tenant {
+  id             String   @id @default(cuid())
+  propertyId     String
+
+  fullName       String
+  dob            DateTime?
+  gender         String?
+  maritalStatus  String?
+  livingInHouse  String?
+  education      String?
+  occupation     String?
+  religion       String?
+
+  phone          String
+  email          String?
+
+  nativeAddress  String?
+  workAddress    String?
+
+  familyCount    Int      @default(0)
+
+  rehotraType    String?
+  rehotraNumber  String?
+
+  rentAmount     Decimal?
+  advanceAmount  Decimal?
+  maintenanceFee Decimal?
+  brokerageFee   Decimal?
+
+  dateOfComing   DateTime?
+  dateOfLeaving  DateTime?
+
+  profilePhoto   String?
+
+  status         String   @default("Active")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  property       Property @relation(fields: [propertyId], references: [id])
+
+  documents      TenantDocument[]
+  familyMembers  FamilyMember[]
+  rentHistory    RentRecord[]
+
+  @@index([propertyId])
+  @@index([status])
+}
+
+model FamilyMember {
+  id        String   @id @default(cuid())
+  tenantId  String
+
+  relation  String?
+  name      String
+  phone     String?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model TenantDocument {
+  id        String   @id @default(cuid())
+  tenantId  String
+
+  name      String
+  fileUrl   String
+  mimeType  String
+  fileSize  Int?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model RentRecord {
+  id        String   @id @default(cuid())
+  tenantId  String
+
+  month     String
+  year      Int
+  amount    Decimal
+
+  status    String   @default("Pending")
+
+  dueDate   DateTime?
+  paidDate  DateTime?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([year, month])
+  @@index([status])
+}
+
+model Bill {
+  id          String   @id @default(cuid())
+  propertyId  String
+
+  amount      Decimal
+  dueDate     DateTime?
+  status      String   @default("Pending")
+  description String?
+
+  createdAt   DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model Maintenance {
+  id          String   @id @default(cuid())
+  propertyId  String
+
+  title       String
+  description String?
+  cost        Decimal?
+  status      String   @default("Pending")
+
+  createdAt   DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model StorageFee {
+  id          String   @id @default(cuid())
+  propertyId  String
+
+  amount      Decimal
+  month       String
+  status      String   @default("Pending")
+  description String?
+
+  createdAt   DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  message   String
+  type      String   @default("alert")
+  read      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([read])
+}
