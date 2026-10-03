@@ -1,0 +1,46 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: sakthi-property-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -eu
+
+            APP_DIR=/opt/sakthi-property-web
+            SERVICE_USER=sakthi-property
+
+            sudo -n -u "$SERVICE_USER" git -C "$APP_DIR" fetch --prune origin main
+            sudo -n -u "$SERVICE_USER" git -C "$APP_DIR" reset --hard origin/main
+
+            sudo -n -u "$SERVICE_USER" npm ci --prefix "$APP_DIR"
+            sudo -n -u "$SERVICE_USER" npm run build --prefix "$APP_DIR"
+            sudo -n -u "$SERVICE_USER" npm ci --include=dev --prefix "$APP_DIR/server"
+
+            sudo -n -u "$SERVICE_USER" sh -c \
+              'set -a; . /etc/sakthi-property/server.env; set +a; cd /opt/sakthi-property-web/server && npx prisma migrate deploy'
+            sudo -n -u "$SERVICE_USER" npm prune --omit=dev --prefix "$APP_DIR/server"
+
+            sudo rsync -a --delete --chown=root:www-data --chmod=D750,F640 \
+              "$APP_DIR/dist/" /var/www/sakthi-property/
+            sudo systemctl restart sakthi-property-api
