@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import { prisma } from "./prisma.js";
 import { registerAuth, requireAdmin, logAudit } from "./auth.js";
-import { auditMiddleware, apiLimiter, securityHeaders, requestLogger, errorHandler } from "./middleware.js";
+import { auditMiddleware, apiLimiter, securityHeaders, requestLogger, errorHandler } from "../middleware.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
