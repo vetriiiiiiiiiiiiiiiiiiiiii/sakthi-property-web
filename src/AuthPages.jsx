@@ -304,8 +304,6 @@ export function LoginPage({ onLoginSuccess, onForgotPassword }) {
   return (
     <>
       <div className="auth-card" role="region" aria-label="Login form">
-        <SakthiLogo />
-
         <div className="auth-card-head">
           <span className="auth-kicker">ADMINISTRATOR PORTAL</span>
           <h1>Sign In</h1>
@@ -779,14 +777,11 @@ export default function AuthShell({ onLoginSuccess }) {
   return (
     <div className="auth-shell">
       <aside className="auth-brand-panel">
-        <div className="auth-brand-mark">
-          <AuthIcon name="home" size={28} />
-        </div>
-        <div className="auth-brand-name">
-          <strong>SAKTHI</strong>
-          <span>PROPERTY</span>
-          <small>Property &amp; Facility Management</small>
-        </div>
+        <img
+          className="auth-brand-logo"
+          src="/sakthi-property-logo.png"
+          alt="Sakthi Property — Building Your Tomorrow"
+        />
         <div className="auth-brand-line" />
         <div className="auth-trust">
           <AuthIcon name="shield" size={16} />
