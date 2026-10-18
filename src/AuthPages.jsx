@@ -136,83 +136,15 @@ export function SakthiLogo() {
   );
 }
 
-function GoogleSetupModal({ isOpen, onClose }) {
-  if (!isOpen) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-panel modal-sm"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="google-modal-title"
-      >
-        <div className="modal-header">
-          <h3 id="google-modal-title">Google Authentication</h3>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={onClose}
-            aria-label="Close modal"
-          >
-            <AuthIcon name="arrowLeft" size={16} />
-          </button>
-        </div>
-        <div
-          className="modal-body"
-          style={{ fontSize: '13px', lineHeight: '1.6', color: '#334155' }}
-        >
-          <p style={{ marginBottom: '12px' }}>
-            To connect live Google accounts in production:
-          </p>
-          <ol
-            style={{
-              paddingLeft: '20px',
-              margin: '0 0 16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            <li>
-              Create an OAuth 2.0 Client ID in{' '}
-              <strong>Google Cloud Console</strong>.
-            </li>
-            <li>
-              Set <code>VITE_GOOGLE_CLIENT_ID</code> in root <code>.env</code>.
-            </li>
-            <li>
-              Set <code>GOOGLE_CLIENT_ID</code> in <code>server/.env</code>.
-            </li>
-          </ol>
-          <p>
-            Restart the frontend and backend after changing these values. Google
-            sign-in is available only to verified Google accounts that the server
-            has authorized.
-          </p>
-        </div>
-        <div
-          className="modal-footer"
-          style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}
-        >
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function LoginPage({ onLoginSuccess, onForgotPassword }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [error, setError] = useState('');
   const googleButtonRef = useRef(null);
+  const googleEnabled = Boolean(import.meta.env?.VITE_GOOGLE_CLIENT_ID);
 
   // Google Identity Services returns a signed ID token to this callback.
   // The API verifies that token before creating a local session.
@@ -308,7 +240,9 @@ export function LoginPage({ onLoginSuccess, onForgotPassword }) {
           <span className="auth-kicker">ADMINISTRATOR PORTAL</span>
           <h1>Sign In</h1>
           <p>
-            Enter your administrator credentials or continue with your Google account.
+            {googleEnabled
+              ? 'Enter your administrator credentials or continue with your Google account.'
+              : 'Enter your administrator username and password.'}
           </p>
         </div>
 
@@ -322,28 +256,19 @@ export function LoginPage({ onLoginSuccess, onForgotPassword }) {
           </div>
         )}
 
-        {import.meta.env?.VITE_GOOGLE_CLIENT_ID ? (
-          <div
-            ref={googleButtonRef}
-            className="google-sign-in"
-            aria-label="Continue with Google"
-            aria-busy={googleLoading}
-          />
-        ) : (
-          <button
-            type="button"
-            className="btn-google"
-            onClick={() => setShowGoogleModal(true)}
-            disabled={loading}
-          >
-            <GoogleIcon size={19} />
-            <span>Continue with Google</span>
-          </button>
+        {googleEnabled && (
+          <>
+            <div
+              ref={googleButtonRef}
+              className="google-sign-in"
+              aria-label="Continue with Google"
+              aria-busy={googleLoading}
+            />
+            <div className="auth-divider">
+              <span>or sign in with password</span>
+            </div>
+          </>
         )}
-
-        <div className="auth-divider">
-          <span>or sign in with password</span>
-        </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
@@ -423,10 +348,6 @@ export function LoginPage({ onLoginSuccess, onForgotPassword }) {
         </div>
       </div>
 
-      <GoogleSetupModal
-        isOpen={showGoogleModal}
-        onClose={() => setShowGoogleModal(false)}
-      />
     </>
   );
 }

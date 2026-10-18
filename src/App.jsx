@@ -57,6 +57,7 @@ const ICONS = {
   external: <><path d="M14 5h5v5" /><path d="m19 5-8 8" /><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" /></>,
   camera: <><path d="M4 7h4l1.5-2h5L16 7h4v12H4z" /><circle cx="12" cy="13" r="3.2" /></>,
   filePlus: <><path d="M14 3v5h5" /><path d="M6 3h8l5 5v13H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M12 12v6M9 15h6" /></>,
+  receipt: <><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2-3-2Z" /><line x1="8" y1="8" x2="16" y2="8" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="8" y1="16" x2="12" y2="16" /></>,
 };
 
 function Icon({ name, size = 18, className = '' }) {
@@ -215,23 +216,172 @@ function openWhatsAppForTenant(tenant, message) {
   return true;
 }
 
+export function calculateTenantBalances(tenant, currentMonth, currentYear) {
+  const history = Array.isArray(tenant?.rentHistory) ? tenant.rentHistory : [];
+  let previousOutstanding = 0;
+  const previousUnpaidMonths = [];
+
+  history.forEach((rec) => {
+    const isCurrent = currentMonth && currentYear && rec.month === currentMonth && Number(rec.year) === Number(currentYear);
+    if (isCurrent) return;
+
+    const baseDue = Number(rec.totalDue || rec.amount || 0);
+    const paid = Number(rec.paidAmount !== undefined ? rec.paidAmount : (rec.status === 'Paid' ? baseDue : 0));
+    const balance = Number(rec.balanceAmount !== undefined ? rec.balanceAmount : (rec.status === 'Paid' ? 0 : Math.max(0, baseDue - paid)));
+
+    if (balance > 0 && rec.status !== 'Paid') {
+      previousOutstanding += balance;
+      previousUnpaidMonths.push({ month: rec.month, year: rec.year, balance, amount: baseDue, paidAmount: paid });
+    }
+  });
+
+  return { previousOutstanding, previousUnpaidMonths };
+}
+
+export function downloadClosingBillPDF(tenant, property, closingData) {
+  if (!tenant) return;
+  const advance = Number(closingData.advanceAmount ?? tenant.advanceAmount ?? 0);
+  const totalRentDue = Number(closingData.totalRentDue || 0);
+  const totalDeductions = Number(closingData.totalDeductions || 0);
+  const netSettlement = Number(closingData.netSettlement ?? (advance - totalRentDue - totalDeductions));
+  const isRefund = netSettlement >= 0;
+
+  const rentRows = (closingData.rentDues || []).map((r) => `
+    <tr>
+      <td>${escapeHtml(`${r.month || ''} ${r.year || ''}`)}</td>
+      <td>${formatCurrency(r.amount || r.totalDue || 0)}</td>
+      <td>${formatCurrency(r.paidAmount || 0)}</td>
+      <td style="color:#b91c1c;font-weight:700">${formatCurrency(r.balanceAmount ?? r.balance ?? 0)}</td>
+      <td>${escapeHtml(r.notes || 'Unpaid / Partial rent balance')}</td>
+    </tr>
+  `).join('');
+
+  const deductionRows = (closingData.deductions || []).map((d) => `
+    <tr>
+      <td>${escapeHtml(d.title || d.name || 'Deduction')}</td>
+      <td style="text-align:right;color:#b91c1c;font-weight:600">${formatCurrency(d.amount || 0)}</td>
+    </tr>
+  `).join('');
+
+  const win = window.open('', '_blank', 'width=980,height=820');
+  if (!win) return;
+  win.opener = null;
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(tenant.fullName)} - Final Closing Bill &amp; Settlement</title>
+  <style>
+    @page{size:A4;margin:14mm}
+    *{box-sizing:border-box}body{font:11px Arial,Helvetica,sans-serif;color:#1e293b;background:#fff;margin:0;line-height:1.45}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #d7b653;padding-bottom:12px;margin-bottom:16px}
+    .brand{font-size:22px;font-weight:800;color:#123f78;letter-spacing:.02em}.sub{font-size:11px;color:#64748b;margin-top:2px}
+    h1{font-size:19px;margin:0 0 3px;color:#0f172a}h2{font-size:13px;color:#123f78;margin:16px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+    .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+    .box{border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;background:#f8fafc}
+    .box span{display:block;font-size:10px;color:#64748b;margin-bottom:2px}.box strong{font-size:12px;color:#0f172a}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;margin-bottom:12px}
+    th,td{padding:7px;border:1px solid #e2e8f0;vertical-align:top;overflow-wrap:anywhere}
+    th{background:#f1f5f9;color:#475569;font-weight:700;text-align:left}
+    .summary-card{border:2px solid ${isRefund ? '#22c55e' : '#ef4444'};background:${isRefund ? '#f0fdf4' : '#fef2f2'};border-radius:10px;padding:14px;margin:16px 0;text-align:center}
+    .summary-card .title{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${isRefund ? '#15803d' : '#b91c1c'}}
+    .summary-card .value{font-size:22px;font-weight:800;margin-top:4px;color:${isRefund ? '#15803d' : '#b91c1c'}}
+    .calc-table{width:100%;max-width:440px;margin:10px auto;border-collapse:collapse;font-size:11px}
+    .calc-table td{border:none;padding:4px 8px}
+    .signatures{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:36px;padding-top:14px}
+    .sig-line{border-top:1px dashed #94a3b8;padding-top:6px;text-align:center;font-size:11px;color:#475569}
+    .footer{margin-top:20px;border-top:1px solid #e2e8f0;padding-top:8px;font-size:9px;color:#94a3b8;text-align:center}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
+  <div class="header">
+    <div><div class="brand">SAKTHI PROPERTY</div><div class="sub">Property &amp; Facility Management</div></div>
+    <div style="text-align:right"><div style="font-weight:700;color:#123f78">FINAL CLOSING &amp; SETTLEMENT BILL</div><div class="sub">Date: ${formatDate(closingData.closingDate || new Date())}</div></div>
+  </div>
+  <h1>${escapeHtml(tenant.fullName)}</h1>
+  <div class="meta-grid">
+    <div class="box"><span>Rented Property</span><strong>${escapeHtml(property?.name || '—')} (${escapeHtml(property?.type || 'Property')})</strong></div>
+    <div class="box"><span>Property Address</span><strong>${escapeHtml(property?.address || '—')}, ${escapeHtml(property?.city || '')}</strong></div>
+    <div class="box"><span>Tenant Mobile</span><strong>${escapeHtml(tenant.phone || '—')}</strong></div>
+    <div class="box"><span>Tenancy Period</span><strong>${formatDate(tenant.dateOfComing)} &rarr; ${formatDate(closingData.closingDate || tenant.dateOfLeaving || new Date())}</strong></div>
+    <div class="box"><span>Property Owner</span><strong>${escapeHtml(property?.ownerName || '—')}</strong></div>
+    <div class="box"><span>EB / Electricity Number</span><strong>${escapeHtml(property?.ebNumber || '—')}</strong></div>
+  </div>
+
+  <h2>1. Security Deposit / Advance Ledger</h2>
+  <table>
+    <thead><tr><th>Description</th><th style="text-align:right">Credit Amount (₹)</th></tr></thead>
+    <tbody>
+      <tr><td>Security Deposit / Advance received at commencement of tenancy</td><td style="text-align:right;font-weight:700;color:#15803d">${formatCurrency(advance)}</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. Outstanding Rent Balance Tally</h2>
+  ${rentRows ? `
+  <table>
+    <thead><tr><th>Month &amp; Year</th><th>Monthly Rent</th><th>Amount Paid</th><th style="color:#b91c1c">Balance Due</th><th>Remarks</th></tr></thead>
+    <tbody>${rentRows}</tbody>
+    <tfoot><tr><th colspan="3">Total Unpaid Rent Dues Tally</th><th colspan="2" style="color:#b91c1c;font-size:11px">${formatCurrency(totalRentDue)}</th></tr></tfoot>
+  </table>` : '<div style="color:#64748b;padding:6px 0;font-size:11px">✓ No unpaid rent balance. All rent payments are fully tallied and settled.</div>'}
+
+  <h2>3. Utility, Maintenance &amp; Repair Deductions</h2>
+  ${deductionRows ? `
+  <table>
+    <thead><tr><th>Deduction Item</th><th style="text-align:right">Deduction Amount (₹)</th></tr></thead>
+    <tbody>${deductionRows}</tbody>
+    <tfoot><tr><th>Total Deductions</th><th style="text-align:right;color:#b91c1c;font-size:11px">${formatCurrency(totalDeductions)}</th></tr></tfoot>
+  </table>` : '<div style="color:#64748b;padding:6px 0;font-size:11px">No extra deductions recorded.</div>'}
+
+  <h2>4. Final Settlement Summary</h2>
+  <table class="calc-table">
+    <tr><td>Advance / Security Deposit Paid:</td><td style="text-align:right;font-weight:700;color:#15803d">+ ${formatCurrency(advance)}</td></tr>
+    <tr><td>Less: Tallied Rent Arrears:</td><td style="text-align:right;font-weight:700;color:#b91c1c">- ${formatCurrency(totalRentDue)}</td></tr>
+    <tr><td>Less: Maintenance &amp; Repair Deductions:</td><td style="text-align:right;font-weight:700;color:#b91c1c">- ${formatCurrency(totalDeductions)}</td></tr>
+  </table>
+
+  <div class="summary-card">
+    <div class="title">${isRefund ? 'Net Refund Payable to Tenant' : 'Net Balance Payable by Tenant'}</div>
+    <div class="value">${formatCurrency(Math.abs(netSettlement))}</div>
+    <div style="font-size:11px;margin-top:6px;color:#64748b">
+      ${isRefund ? 'Security deposit covers all dues. Balance amount is to be refunded to the tenant upon vacation.' : 'Outstanding dues exceed security deposit. Tenant is required to settle the remaining balance.'}
+    </div>
+  </div>
+
+  ${closingData.notes ? `<div style="font-size:10px;color:#475569;margin-bottom:12px"><b>Notes / Observations:</b> ${escapeHtml(closingData.notes)}</div>` : ''}
+
+  <div class="signatures">
+    <div class="sig-line">Tenant Signature<br/><small style="color:#94a3b8">${escapeHtml(tenant.fullName)}</small></div>
+    <div class="sig-line">Property Manager / Authorized Signatory<br/><small style="color:#94a3b8">Sakthi Property Management</small></div>
+  </div>
+
+  <div class="footer">
+    This closing bill is an official settlement statement issued by Sakthi Property. Both parties agree that upon execution of this settlement, all tenancy dues and deposit refunds stand completely tallied and discharged.
+  </div>
+  <script>window.onload=function(){setTimeout(function(){window.print()},250)};<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
 function downloadRentHistoryFile(tenant, property, format = 'pdf') {
   if (!tenant) return;
   const history = Array.isArray(tenant.rentHistory) ? tenant.rentHistory : [];
 
+  const total = history.reduce((sum, r) => sum + Number(r.totalDue || r.amount || 0), 0);
+  const paid = history.reduce((sum, r) => sum + Number(r.paidAmount !== undefined ? r.paidAmount : (r.status === 'Paid' ? r.amount : 0)), 0);
+  const pending = history.reduce((sum, r) => sum + Number(r.balanceAmount !== undefined ? r.balanceAmount : (r.status === 'Paid' ? 0 : Math.max(0, (r.totalDue || r.amount) - (r.paidAmount || 0)))), 0);
+
   if (format === 'pdf') {
-    const total = history.reduce((sum, r) => sum + Number(r.amount || 0), 0);
-    const paid = history.filter((r) => r.status === 'Paid').reduce((sum, r) => sum + Number(r.amount || 0), 0);
-    const pending = history.filter((r) => r.status !== 'Paid').reduce((sum, r) => sum + Number(r.amount || 0), 0);
-    const rows = history.map((r) => `
+    const rows = history.map((r) => {
+      const due = Number(r.totalDue || r.amount || 0);
+      const paidAmt = Number(r.paidAmount !== undefined ? r.paidAmount : (r.status === 'Paid' ? due : 0));
+      const bal = Number(r.balanceAmount !== undefined ? r.balanceAmount : (r.status === 'Paid' ? 0 : Math.max(0, due - paidAmt)));
+      return `
       <tr>
         <td>${r.month || ''} ${r.year || ''}</td>
-        <td>${formatCurrency(r.amount)}</td>
-        <td><span class="status ${String(r.status).toLowerCase()}">${r.status || 'Pending'}</span></td>
+        <td>${formatCurrency(due)}</td>
+        <td>${formatCurrency(paidAmt)}</td>
+        <td style="${bal > 0 ? 'color:#b91c1c;font-weight:700' : ''}">${formatCurrency(bal)}</td>
+        <td><span class="status ${String(r.status).toLowerCase().replace(/\s+/g, '-')}">${r.status || 'Pending'}</span></td>
         <td>${escapeHtml(formatDateTime(r.transactionDate || r.paidDate))}</td>
         <td>${formatDate(r.dueDate)}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
     const win = window.open('', '_blank', 'width=980,height=760');
     if (!win) return;
     win.opener = null;
@@ -245,7 +395,7 @@ function downloadRentHistoryFile(tenant, property, format = 'pdf') {
       .box{border:1px solid #e1e8ef;border-radius:10px;padding:10px 12px;background:#fbfcfe}.box b{color:#183d6e}.box span{display:block;font-size:11px;color:#7b8798;margin-bottom:3px}.box strong{font-size:13px;color:#1d2d43}
       .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.summary .box{text-align:left}.summary .value{font-size:18px;font-weight:800;color:#123f78}
       table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}th{background:#f4f7fb;color:#5d6d82;text-align:left;padding:8px;border-bottom:1px solid #dfe7ef}td{padding:8px;border-bottom:1px solid #e8edf3;color:#2b3a4d;overflow-wrap:anywhere;vertical-align:top}thead{display:table-header-group}tr{break-inside:avoid}
-      .status{font-weight:700}.status.paid{color:#4f8b68}.status.pending{color:#ad7a25}.status.overdue{color:#b76060}
+      .status{font-weight:700}.status.paid{color:#4f8b68}.status.partially-paid{color:#c27803}.status.pending{color:#ad7a25}.status.overdue{color:#b76060}
       .footer{margin-top:22px;padding-top:10px;border-top:1px solid #e4e9ef;font-size:10px;color:#8591a1}
       @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
     </style></head><body>
@@ -264,9 +414,9 @@ function downloadRentHistoryFile(tenant, property, format = 'pdf') {
     <div class="summary">
       <div class="box"><span>Total recorded rent</span><div class="value">${formatCurrency(total)}</div></div>
       <div class="box"><span>Rent paid</span><div class="value">${formatCurrency(paid)}</div></div>
-      <div class="box"><span>Outstanding</span><div class="value">${formatCurrency(pending)}</div></div>
+      <div class="box"><span>Outstanding balance</span><div class="value" style="${pending > 0 ? 'color:#b91c1c' : ''}">${formatCurrency(pending)}</div></div>
     </div>
-    <table><thead><tr><th>Month</th><th>Amount</th><th>Status</th><th>Transaction date &amp; time</th><th>Due date</th></tr></thead><tbody>${rows || '<tr><td colspan="5">No rent history recorded.</td></tr>'}</tbody></table>
+    <table><thead><tr><th>Month</th><th>Rent Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Transaction date &amp; time</th><th>Due date</th></tr></thead><tbody>${rows || '<tr><td colspan="7">No rent history recorded.</td></tr>'}</tbody></table>
     <div class="footer">Sakthi Property - Tenant rent history. This report contains the rent records currently stored in the application.</div>
     <script>window.onload=function(){setTimeout(function(){window.print()},250)};<\/script>
     </body></html>`);
@@ -275,19 +425,26 @@ function downloadRentHistoryFile(tenant, property, format = 'pdf') {
   }
 
   const safeName = String(tenant.fullName || 'tenant').replace(/[^a-zA-Z0-9-_ ]/g, '').trim() || 'tenant';
-  const rows = history.map((r) => ({
-    month: r.month || '',
-    year: r.year || '',
-    amount: Number(r.amount || 0),
-    status: r.status || 'Pending',
+  const rows = history.map((r) => {
+    const due = Number(r.totalDue || r.amount || 0);
+    const paidAmt = Number(r.paidAmount !== undefined ? r.paidAmount : (r.status === 'Paid' ? due : 0));
+    const bal = Number(r.balanceAmount !== undefined ? r.balanceAmount : (r.status === 'Paid' ? 0 : Math.max(0, due - paidAmt)));
+    return {
+      month: r.month || '',
+      year: r.year || '',
+      rentDue: due,
+      paid: paidAmt,
+      balance: bal,
+      status: r.status || 'Pending',
       transactionDate: r.transactionDate || r.paidDate || '',
-    dueDate: r.dueDate || '',
-  }));
+      dueDate: r.dueDate || '',
+    };
+  });
 
   if (format === 'csv') {
-    const headers = ['Month', 'Year', 'Amount', 'Status', 'Transaction date/time', 'Due date'];
+    const headers = ['Month', 'Year', 'Rent Due', 'Paid', 'Balance', 'Status', 'Transaction date/time', 'Due date'];
     const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => {
-      const key = { Month: 'month', Year: 'year', Amount: 'amount', Status: 'status', 'Transaction date/time': 'transactionDate', 'Due date': 'dueDate' }[h];
+      const key = { Month: 'month', Year: 'year', 'Rent Due': 'rentDue', Paid: 'paid', Balance: 'balance', Status: 'status', 'Transaction date/time': 'transactionDate', 'Due date': 'dueDate' }[h];
       const value = r[key] ?? '';
       return `"${String(value).replace(/"/g, '""')}"`;
     }).join(','))].join('\n');
@@ -297,7 +454,7 @@ function downloadRentHistoryFile(tenant, property, format = 'pdf') {
 
   if (format === 'json') {
     const payload = {
-      tenant: { fullName: tenant.fullName, phone: tenant.phone, status: tenant.status, property: property?.name || '', owner: property?.ownerName || '' },
+      tenant: { fullName: tenant.fullName, phone: tenant.phone, status: tenant.status, property: property?.name || '', owner: property?.ownerName || '', totalDue: total, totalPaid: paid, balancePending: pending },
       history: rows,
     };
     downloadTextFile(`${safeName}-rent-history.json`, JSON.stringify(payload, null, 2), 'application/json');
@@ -308,9 +465,10 @@ function downloadRentHistoryFile(tenant, property, format = 'pdf') {
     `Tenant: ${tenant.fullName}`,
     `Phone: ${tenant.phone || '—'}`,
     `Property: ${property?.name || '—'}`,
+    `Total Rent: ${formatCurrency(total)} | Total Paid: ${formatCurrency(paid)} | Outstanding Balance: ${formatCurrency(pending)}`,
     '',
-    'Month | Year | Amount | Status | Paid on | Due date',
-    ...rows.map((r) => `${r.month} | ${r.year} | ${formatCurrency(r.amount)} | ${r.status} | ${formatDateTime(r.transactionDate)} | ${r.dueDate || '—'}`),
+    'Month | Year | Rent Due | Paid | Balance | Status | Paid on | Due date',
+    ...rows.map((r) => `${r.month} | ${r.year} | ${formatCurrency(r.rentDue)} | ${formatCurrency(r.paid)} | ${formatCurrency(r.balance)} | ${r.status} | ${formatDateTime(r.transactionDate)} | ${r.dueDate || '—'}`),
   ].join('\n');
   downloadTextFile(`${safeName}-rent-history.txt`, text, 'text/plain');
 }
@@ -334,7 +492,12 @@ export function downloadTenantDetailsPDF(tenant, property) {
   }).join('');
   const history = Array.isArray(tenant.rentHistory) ? tenant.rentHistory : [];
   const familyCount = tenant.familyMembers?.length || Number(tenant.familyCount || 0);
-  const transactionRows = history.map((record) => `<tr><td>${escapeHtml(`${record.month || ''} ${record.year || ''}`.trim() || '—')}</td><td>${escapeHtml(formatCurrency(record.amount))}</td><td>${escapeHtml(record.status || 'Pending')}</td><td>${escapeHtml(formatDateTime(record.transactionDate || record.paidDate))}</td><td>${escapeHtml(formatDate(record.dueDate))}</td></tr>`).join('');
+  const transactionRows = history.map((record) => {
+    const due = Number(record.totalDue || record.amount || 0);
+    const paid = Number(record.paidAmount !== undefined ? record.paidAmount : (record.status === 'Paid' ? due : 0));
+    const bal = Number(record.balanceAmount !== undefined ? record.balanceAmount : Math.max(0, due - paid));
+    return `<tr><td>${escapeHtml(`${record.month || ''} ${record.year || ''}`.trim() || '—')}</td><td>${escapeHtml(formatCurrency(due))}</td><td>${escapeHtml(formatCurrency(paid))}</td><td style="${bal > 0 ? 'color:#b91c1c;font-weight:700' : ''}">${escapeHtml(formatCurrency(bal))}</td><td>${escapeHtml(record.status || 'Pending')}</td><td>${escapeHtml(formatDateTime(record.transactionDate || record.paidDate))}</td><td>${escapeHtml(formatDate(record.dueDate))}</td></tr>`;
+  }).join('');
   const win = window.open('', '_blank', 'width=980,height=760');
   if (!win) return;
   win.opener = null;
@@ -352,7 +515,7 @@ export function downloadTenantDetailsPDF(tenant, property) {
   </div>
   <h2>Family members</h2>${familyRows ? `<table><thead><tr><th>Relation</th><th>Name</th><th>Phone</th></tr></thead><tbody>${familyRows}</tbody></table>` : '<div class="empty">No family members recorded.</div>'}
   <h2>Tenant documents</h2>${documentRows ? `<table><thead><tr><th>Document</th><th>File</th><th>Uploaded</th><th>Size</th></tr></thead><tbody>${documentRows}</tbody></table>` : '<div class="empty">No tenant documents recorded.</div>'}
-  <h2>Rent transaction history</h2>${transactionRows ? `<table><thead><tr><th>Month</th><th>Amount</th><th>Status</th><th>Transaction date &amp; time</th><th>Due date</th></tr></thead><tbody>${transactionRows}</tbody></table>` : '<div class="empty">No rent transactions recorded.</div>'}
+  <h2>Rent transaction history</h2>${transactionRows ? `<table><thead><tr><th>Month</th><th>Rent Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Transaction date &amp; time</th><th>Due date</th></tr></thead><tbody>${transactionRows}</tbody></table>` : '<div class="empty">No rent transactions recorded.</div>'}
   <div class="footer">This report contains tenant, property, document and transaction details currently stored in the application.</div>
   <script>window.onload=function(){setTimeout(function(){window.print()},250)};<\/script></body></html>`);
   win.document.close();
@@ -1029,20 +1192,41 @@ function TenantForm({ initial, properties, onSave, onCancel, pushToast }) {
 /* =========================================================
    DASHBOARD PAGE
    ========================================================= */
-export function DashboardPage({ properties, tenants, bills, notifications, setPage }) {
+export function DashboardPage({ properties, tenants, bills, notifications, setPage, onNavigateToProperties }) {
   const now = new Date();
+  const handleNavProps = (filter) => {
+    if (onNavigateToProperties) onNavigateToProperties(filter);
+    else setPage('properties');
+  };
+
   const stats = useMemo(() => {
     const total = properties.length;
     const occupied = properties.filter((p) => p.status === 'Occupied').length;
-    const available = properties.filter((p) => p.status === 'Available').length;
+    const available = properties.filter((p) => p.status !== 'Occupied').length;
     const totalUnits = properties.reduce((s, p) => s + (Number(p.flatsCount) || 1), 0);
     const totalTenants = tenants.filter((t) => t.status !== 'Archived').length;
     const currentMonth = MONTHS[now.getMonth()];
     const currentYear = now.getFullYear();
     const currentRentRecords = tenants.flatMap((tenant) => (tenant.rentHistory || []).filter((record) => record.month === currentMonth && Number(record.year) === currentYear));
-    const rentCollected = currentRentRecords.filter((record) => record.status === 'Paid').reduce((sum, record) => sum + Number(record.amount || 0), 0);
-    const rentOverdue = currentRentRecords.filter((record) => record.status === 'Overdue').reduce((sum, record) => sum + Number(record.amount || 0), 0);
-    const rentPending = currentRentRecords.filter((record) => record.status !== 'Paid' && record.status !== 'Overdue').reduce((sum, record) => sum + Number(record.amount || 0), 0);
+    const rentCollected = currentRentRecords.reduce((sum, record) => {
+      if (record.status === 'Paid') return sum + Number(record.paidAmount !== undefined ? record.paidAmount : (record.amount || 0));
+      if (record.status === 'Partially Paid') return sum + Number(record.paidAmount || 0);
+      return sum;
+    }, 0);
+    const rentOverdue = currentRentRecords.filter((record) => record.status === 'Overdue').reduce((sum, record) => {
+      const bal = record.balanceAmount !== undefined ? record.balanceAmount : Math.max(0, Number(record.totalDue || record.amount || 0) - Number(record.paidAmount || 0));
+      return sum + Number(bal || record.amount || 0);
+    }, 0);
+    const rentPending = currentRentRecords.reduce((sum, record) => {
+      if (record.status === 'Partially Paid') {
+        const bal = record.balanceAmount !== undefined ? record.balanceAmount : Math.max(0, Number(record.totalDue || record.amount || 0) - Number(record.paidAmount || 0));
+        return sum + Number(bal || 0);
+      }
+      if (record.status !== 'Paid' && record.status !== 'Overdue') {
+        return sum + Number(record.amount || 0);
+      }
+      return sum;
+    }, 0);
     const overdueTenants = tenants.filter((tenant) => (tenant.rentHistory || []).some((record) => record.month === currentMonth && Number(record.year) === currentYear && record.status === 'Overdue')).length;
     const electricity = bills.reduce((s, b) => s + Number(b.amount || 0), 0);
     return { total, occupied, available, totalUnits, totalTenants, rentCollected, rentPending, rentOverdue, overdueTenants, electricity };
@@ -1056,8 +1240,10 @@ export function DashboardPage({ properties, tenants, bills, notifications, setPa
       let expected = 0, collected = 0;
       tenants.forEach((t) => (t.rentHistory || []).forEach((r) => {
         if (r.month === name && Number(r.year) === d.getFullYear()) {
-          const amount = Number(r.amount || 0);
-          if (r.status === 'Paid') collected += amount; else expected += amount;
+          const total = Number(r.totalDue || r.amount || 0);
+          const paid = Number(r.paidAmount !== undefined ? r.paidAmount : (r.status === 'Paid' ? total : 0));
+          collected += paid;
+          expected += total;
         }
       }));
       months.push({ label: name.slice(0, 3), expected, collected });
@@ -1066,9 +1252,11 @@ export function DashboardPage({ properties, tenants, bills, notifications, setPa
   }, [tenants, now.getMonth(), now.getFullYear()]);
 
   const propertyTypes = [
-    { label: 'Houses', value: properties.filter(p => p.type === 'House').length, color: '#214a91' },
-    { label: 'Offices', value: properties.filter(p => p.type === 'Office').length, color: '#e0a83b' },
-    { label: 'Complexes', value: properties.filter(p => p.type === 'Complex').length, color: '#7f8fc8' },
+    { label: 'Houses', value: properties.filter(p => p.type === 'House').length, color: '#214a91', type: 'House' },
+    { label: 'Offices', value: properties.filter(p => p.type === 'Office').length, color: '#e0a83b', type: 'Office' },
+    { label: 'Complexes', value: properties.filter(p => p.type === 'Complex').length, color: '#7f8fc8', type: 'Complex' },
+    { label: 'Godowns', value: properties.filter(p => p.type === 'Godown').length, color: '#10b981', type: 'Godown' },
+    { label: 'Lands', value: properties.filter(p => p.type === 'Land').length, color: '#9333ea', type: 'Land' },
   ];
   const totalType = propertyTypes.reduce((s, x) => s + x.value, 0);
   const rentStatus = [
@@ -1087,14 +1275,14 @@ export function DashboardPage({ properties, tenants, bills, notifications, setPa
         </div>
         <div className="dashboard-actions">
           <div className="today-btn"><span>Today</span><b>{now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</b></div>
-          <button className="property-filter" onClick={() => setPage('properties')}><Icon name="building" size={14}/> All Properties</button>
+          <button className="property-filter" onClick={() => handleNavProps({ status: 'All', type: 'All' })}><Icon name="building" size={14}/> All Properties</button>
         </div>
       </div>
 
       <div className="reference-stats">
-        <StatCard onClick={() => setPage('properties')} icon="building" label="Total Properties" value={stats.total} sub={stats.total ? `${stats.total} properties on record` : 'No properties yet'} tone="gold" />
-        <StatCard onClick={() => setPage('properties')} icon="users" label="Occupied Properties" value={stats.occupied} sub={stats.total ? `${Math.round(stats.occupied / stats.total * 100)}% occupancy` : '0% occupancy'} tone="green" />
-        <StatCard onClick={() => setPage('properties')} icon="home" label="Vacant Properties" value={stats.available} sub={stats.total ? `${Math.round(stats.available / stats.total * 100)}% vacant` : '0% vacant'} tone="purple" />
+        <StatCard onClick={() => handleNavProps({ status: 'All', type: 'All' })} icon="building" label="Total Properties" value={stats.total} sub={stats.total ? `${stats.total} properties on record` : 'No properties yet'} tone="gold" />
+        <StatCard onClick={() => handleNavProps({ status: 'Occupied' })} icon="users" label="Occupied Properties" value={stats.occupied} sub={stats.total ? `${Math.round(stats.occupied / stats.total * 100)}% occupancy` : '0% occupancy'} tone="green" />
+        <StatCard onClick={() => handleNavProps({ status: 'Available' })} icon="home" label="Vacant Properties" value={stats.available} sub={stats.total ? `${Math.round(stats.available / stats.total * 100)}% vacant` : '0% vacant'} tone="purple" />
         <StatCard onClick={() => setPage('tenants')} icon="users" label="Total Tenants" value={stats.totalTenants} sub="Active tenants" tone="blue" />
         <StatCard onClick={() => setPage('rent')} icon="cash" label="Expected Rent" value={formatCurrency(stats.rentCollected + stats.rentPending + stats.rentOverdue)} sub="This month" tone="purple" />
         <StatCard onClick={() => setPage('rent')} icon="check" label="Rent Collected" value={formatCurrency(stats.rentCollected)} sub={stats.rentCollected + stats.rentPending + stats.rentOverdue ? `${Math.round(stats.rentCollected/(stats.rentCollected+stats.rentPending+stats.rentOverdue)*100)}% of expected` : '0% of expected'} tone="green" />
@@ -1107,7 +1295,7 @@ export function DashboardPage({ properties, tenants, bills, notifications, setPa
           <div className="panel-title"><div><h3>Property Type Overview</h3><p>Total properties by type</p></div></div>
           <div className="donut-layout">
             <DonutChart segments={propertyTypes.filter(x=>x.value>0)} size={112} thickness={18}/>
-            <div className="reference-legend">{propertyTypes.map((x)=><div key={x.label}><i style={{background:x.color}}/><span>{x.label}</span><b>{x.value}</b></div>)}</div>
+            <div className="reference-legend">{propertyTypes.map((x)=><div key={x.label} className="legend-clickable" title={`Filter by ${x.label}`} onClick={() => handleNavProps({ type: x.type, status: 'All' })}><i style={{background:x.color}}/><span>{x.label}</span><b>{x.value}</b></div>)}</div>
           </div>
         </section>
         <section className="dash-panel monthly-panel">
@@ -1116,7 +1304,7 @@ export function DashboardPage({ properties, tenants, bills, notifications, setPa
         </section>
         <section className="dash-panel rent-status-panel">
           <div className="panel-title"><div><h3>Rent Status</h3><p>Current portfolio</p></div></div>
-          <div className="rent-status-layout"><DonutChart segments={rentStatus.filter(x=>x.value>0)} size={116} thickness={18} centerText={formatCompactCurrency(rentStatus.reduce((sum, x) => sum + Number(x.value || 0), 0))}/><div className="reference-legend">{rentStatus.map((x)=><div key={x.label} className={(x.label === 'Due Soon' || x.label === 'Overdue') ? 'rent-legend-clickable' : ''} onClick={(x.label === 'Due Soon' || x.label === 'Overdue') ? () => setPage('rent') : undefined}><i style={{background:x.color}}/><span>{x.label}</span><b>{x.value}</b></div>)}</div></div>
+          <div className="rent-status-layout"><DonutChart segments={rentStatus.filter(x=>x.value>0)} size={116} thickness={18} centerText={formatCompactCurrency(rentStatus.reduce((sum, x) => sum + Number(x.value || 0), 0))}/><div className="reference-legend">{rentStatus.map((x)=><div key={x.label} className={(x.label === 'Due Soon' || x.label === 'Overdue') ? 'rent-legend-clickable' : ''} onClick={(x.label === 'Due Soon' || x.label === 'Overdue') ? () => setPage('rent') : (x.label === 'Vacant' ? () => handleNavProps({ status: 'Available' }) : undefined)}><i style={{background:x.color}}/><span>{x.label}</span><b>{x.value}</b></div>)}</div></div>
         </section>
       </div>
 
@@ -1330,18 +1518,32 @@ function CalculatorPage({ onBack }) {
 /* =========================================================
    PROPERTIES PAGE
    ========================================================= */
-function PropertiesPage({ properties, onAdd, onUpdate, onDelete, onToggleSale, pushToast, onBack }) {
-  const [typeFilter, setTypeFilter] = useState('All');
+function PropertiesPage({ properties, filter = { status: 'All', type: 'All' }, onFilterChange, onAdd, onUpdate, onDelete, onToggleSale, pushToast, onBack }) {
+  const [typeFilter, setTypeFilter] = useState(filter?.type || 'All');
+  const [statusFilter, setStatusFilter] = useState(filter?.status || 'All');
   const [query, setQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  useEffect(() => {
+    if (filter?.type) setTypeFilter(filter.type);
+    if (filter?.status) setStatusFilter(filter.status);
+  }, [filter?.type, filter?.status]);
+
   const search = query.trim().toLowerCase();
+  const occupiedCount = properties.filter((p) => p.status === 'Occupied').length;
+  const vacantCount = properties.filter((p) => p.status !== 'Occupied').length;
+
   const filtered = properties.filter((p) => {
     const name = String(p.name || '').toLowerCase();
     const address = String(p.address || '').toLowerCase();
-    return (typeFilter === 'All' || p.type === typeFilter) && (!search || name.includes(search) || address.includes(search));
+    const matchesType = typeFilter === 'All' || p.type === typeFilter;
+    const matchesStatus = statusFilter === 'All'
+      || (statusFilter === 'Occupied' && p.status === 'Occupied')
+      || ((statusFilter === 'Available' || statusFilter === 'Vacant') && p.status !== 'Occupied');
+    const matchesQuery = !search || name.includes(search) || address.includes(search);
+    return matchesType && matchesStatus && matchesQuery;
   });
 
   return (
@@ -1353,11 +1555,34 @@ function PropertiesPage({ properties, onAdd, onUpdate, onDelete, onToggleSale, p
         </div>
         <button className="btn btn-primary" onClick={() => { setEditing(null); setModalOpen(true); }}><Icon name="plus" size={16} /> Add property</button>
       </div>
-      <div className="toolbar">
+      <div className="toolbar properties-toolbar">
         <div className="search-box"><Icon name="search" size={16} /><input placeholder="Search by name or address" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option>All</option>
-          {PROPERTY_TYPES.map((t) => <option key={t}>{t}</option>)}
+        <div className="status-filter-pills" role="tablist" aria-label="Filter properties by status">
+          <button
+            type="button"
+            className={`filter-pill ${statusFilter === 'All' ? 'active' : ''}`}
+            onClick={() => { setStatusFilter('All'); if (onFilterChange) onFilterChange((f) => ({ ...f, status: 'All' })); }}
+          >
+            All ({properties.length})
+          </button>
+          <button
+            type="button"
+            className={`filter-pill ${statusFilter === 'Occupied' ? 'active' : ''}`}
+            onClick={() => { setStatusFilter('Occupied'); if (onFilterChange) onFilterChange((f) => ({ ...f, status: 'Occupied' })); }}
+          >
+            Occupied ({occupiedCount})
+          </button>
+          <button
+            type="button"
+            className={`filter-pill ${statusFilter === 'Available' || statusFilter === 'Vacant' ? 'active' : ''}`}
+            onClick={() => { setStatusFilter('Available'); if (onFilterChange) onFilterChange((f) => ({ ...f, status: 'Available' })); }}
+          >
+            Vacant ({vacantCount})
+          </button>
+        </div>
+        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); if (onFilterChange) onFilterChange((f) => ({ ...f, type: e.target.value })); }}>
+          <option value="All">All types</option>
+          {PROPERTY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
       <div className="grid-cards">
@@ -1366,7 +1591,18 @@ function PropertiesPage({ properties, onAdd, onUpdate, onDelete, onToggleSale, p
           <div className="property-card" key={p.id}>
             <div className="property-card-top">
               <Badge text={p.type} tone="info" />
-              <Badge text={p.status} tone={p.status === 'Occupied' ? 'success' : 'default'} />
+              <button
+                type="button"
+                className="status-toggle-btn"
+                title={`Click to mark as ${p.status === 'Occupied' ? 'Vacant' : 'Occupied'}`}
+                onClick={() => {
+                  const nextStatus = p.status === 'Occupied' ? 'Available' : 'Occupied';
+                  onUpdate({ ...p, status: nextStatus });
+                  pushToast(`Property marked as ${nextStatus === 'Occupied' ? 'Occupied' : 'Vacant'}`);
+                }}
+              >
+                <Badge text={p.status === 'Occupied' ? 'Occupied' : 'Vacant'} tone={p.status === 'Occupied' ? 'success' : 'default'} />
+              </button>
             </div>
             <h3>{p.name}</h3>
             <p className="muted small"><Icon name="mapPin" size={13} /> {p.address}, {p.city}</p>
@@ -1414,7 +1650,7 @@ function PropertiesPage({ properties, onAdd, onUpdate, onDelete, onToggleSale, p
 /* =========================================================
    TENANTS PAGE
    ========================================================= */
-export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, onRestore, pushToast, sendMessage, onBack }) {
+export function TenantsPage({ tenants, properties, bills, onAdd, onUpdate, onArchive, onRestore, onSettleAndArchive, pushToast, sendMessage, onBack }) {
   const [buildingFilter, setBuildingFilter] = useState('All');
   const [query, setQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -1424,6 +1660,7 @@ export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, o
   const [detailOf, setDetailOf] = useState(null);
   const [viewDocument, setViewDocument] = useState(null);
   const [confirmArchive, setConfirmArchive] = useState(null);
+  const [closingBillTenant, setClosingBillTenant] = useState(null);
 
   const list = tenants
     .filter((t) => (showArchived ? t.status === 'Archived' : t.status !== 'Archived'))
@@ -1470,6 +1707,7 @@ export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, o
                   <button className="icon-btn" title="Download tenant details PDF" aria-label={`Download ${t.fullName} details PDF`} onClick={() => downloadTenantDetailsPDF(t, properties.find((p) => p.id === t.propertyId))}><Icon name="download" size={15} /></button>
                   <button className="icon-btn" title="View details" onClick={() => setDetailOf(t)}><Icon name="eye" size={15} /></button>
                   <button className="icon-btn" title="Rent history" onClick={() => setHistoryOf(t)}><Icon name="clock" size={15} /></button>
+                  <button className="icon-btn" title="Final Closing Bill &amp; Settlement" aria-label={`Final Closing Bill for ${t.fullName}`} onClick={() => setClosingBillTenant(t)}><Icon name="receipt" size={15} /></button>
                   <button className="icon-btn" title="Edit" onClick={() => { setEditing(t); setModalOpen(true); }}><Icon name="edit" size={15} /></button>
                   <button className="icon-btn" title="Send reminder" onClick={() => { sendMessage(t, 'Friendly rent reminder'); pushToast('Message sent to ' + t.fullName); }}><Icon name="send" size={15} /></button>
                   {t.status !== 'Archived'
@@ -1518,13 +1756,20 @@ export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, o
                 {previousTenants.length === 0 ? <p className="muted">No previous tenant records for this property.</p> : previousTenants.map((prev) => <div className="previous-tenant-row" key={prev.id}><span><b>{prev.fullName}</b><small>{formatDate(prev.dateOfComing)} → {formatDate(prev.dateOfLeaving)}</small></span><div className="row-actions"><button className="btn btn-xs btn-outline" onClick={() => setDetailOf(prev)}>View</button><button className="btn btn-xs btn-outline" aria-label={`Download ${prev.fullName} details PDF`} onClick={() => downloadTenantDetailsPDF(prev, property)}><Icon name="download" size={13}/> PDF</button></div></div>)}
               </div>
             </div>
-            <div className="modal-footer-inline"><button className="btn btn-primary" onClick={() => downloadTenantDetailsPDF(detailOf, property)}><Icon name="download" size={15}/> Download tenant details PDF</button></div>
+            <div className="modal-footer-inline" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-outline" onClick={() => { const target = detailOf; setDetailOf(null); setClosingBillTenant(target); }}>
+                <Icon name="receipt" size={15}/> Final Closing Bill &amp; Settlement
+              </button>
+              <button className="btn btn-primary" onClick={() => downloadTenantDetailsPDF(detailOf, property)}>
+                <Icon name="download" size={15}/> Download tenant details PDF
+              </button>
+            </div>
             {viewDocument && <DocumentViewer documentRecord={viewDocument.doc} title={viewDocument.title} onClose={() => setViewDocument(null)} />}
           </Modal>
         );
       })()}
       {historyOf && (
-        <Modal title={`Rent history — ${historyOf.fullName}`} onClose={() => setHistoryOf(null)}>
+        <Modal title={`Rent history — ${historyOf.fullName}`} onClose={() => setHistoryOf(null)} wide>
           <div className="rent-history-toolbar">
             <span className="muted">All recorded rent transactions for this tenant.</span>
             <div className="download-format-row">
@@ -1536,14 +1781,24 @@ export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, o
           </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Month</th><th>Amount</th><th>Status</th><th>Transaction date &amp; time</th></tr></thead>
+              <thead><tr><th>Month</th><th>Rent Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Transaction date &amp; time</th></tr></thead>
               <tbody>
-                {(historyOf.rentHistory || []).map((r, i) => (
-                  <tr key={i}><td>{r.month} {r.year}</td><td>{formatCurrency(r.amount)}</td>
-                    <td><Badge text={r.status} tone={r.status === 'Paid' ? 'success' : r.status === 'Overdue' ? 'danger' : 'warning'} /></td>
-                    <td>{formatDateTime(r.transactionDate || r.paidDate)}</td></tr>
-                ))}
-                {(!historyOf.rentHistory || historyOf.rentHistory.length === 0) && <tr><td colSpan="4"><EmptyState text="No rent history yet" /></td></tr>}
+                {(historyOf.rentHistory || []).map((r, i) => {
+                  const due = Number(r.totalDue || r.amount || 0);
+                  const paid = Number(r.paidAmount !== undefined ? r.paidAmount : (r.status === 'Paid' ? due : 0));
+                  const bal = Number(r.balanceAmount !== undefined ? r.balanceAmount : (r.status === 'Paid' ? 0 : Math.max(0, due - paid)));
+                  return (
+                    <tr key={i}>
+                      <td>{r.month} {r.year}</td>
+                      <td>{formatCurrency(due)}</td>
+                      <td>{formatCurrency(paid)}</td>
+                      <td style={bal > 0 ? { color: '#b91c1c', fontWeight: '700' } : {}}>{formatCurrency(bal)}</td>
+                      <td><Badge text={r.status} tone={r.status === 'Paid' ? 'success' : r.status === 'Partially Paid' ? 'warning' : r.status === 'Overdue' ? 'danger' : 'warning'} /></td>
+                      <td>{formatDateTime(r.transactionDate || r.paidDate)}</td>
+                    </tr>
+                  );
+                })}
+                {(!historyOf.rentHistory || historyOf.rentHistory.length === 0) && <tr><td colSpan="6"><EmptyState text="No rent history yet" /></td></tr>}
               </tbody>
             </table>
           </div>
@@ -1557,6 +1812,16 @@ export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, o
           </div>
         </Modal>
       )}
+      {closingBillTenant && (
+        <FinalClosingBillModal
+          tenant={closingBillTenant}
+          properties={properties}
+          bills={bills || []}
+          onClose={() => setClosingBillTenant(null)}
+          onSettleAndArchive={onSettleAndArchive || onArchive}
+          pushToast={pushToast}
+        />
+      )}
       {confirmArchive && (
         <ConfirmDialog title="Archive tenant" message={`Archive ${confirmArchive.fullName}? You can restore them or add a new tenant to this property later.`}
           onCancel={() => setConfirmArchive(null)}
@@ -1567,11 +1832,392 @@ export function TenantsPage({ tenants, properties, onAdd, onUpdate, onArchive, o
 }
 
 /* =========================================================
+   RENT PAYMENT MODAL (COLLECT RENT & TALLY BALANCES)
+   ========================================================= */
+function RentPaymentModal({ tenant, record, properties, onClose, onSavePayment, pushToast }) {
+  const property = properties.find((p) => p.id === (record?.propertyId || tenant?.propertyId));
+  const month = record?.month || MONTHS[new Date().getMonth()];
+  const year = Number(record?.year) || new Date().getFullYear();
+
+  // Base monthly rent
+  const baseRent = Number(record?.amount || tenant?.rentAmount || 0);
+
+  // Calculate prior unpaid balances carried forward
+  const balanceInfo = useMemo(() => {
+    return calculateTenantBalances(tenant, month, year);
+  }, [tenant, month, year]);
+
+  const previousBalance = balanceInfo.previousOutstanding;
+  const totalDue = baseRent + previousBalance;
+
+  // Initial payment amount: if previously recorded, use paidAmount, else default to totalDue
+  const initialPaid = record?.paidAmount !== undefined
+    ? Number(record.paidAmount)
+    : (record?.status === 'Paid' ? totalDue : totalDue);
+
+  const [amountPaid, setAmountPaid] = useState(String(initialPaid));
+  const [paymentMode, setPaymentMode] = useState(record?.paymentMethod || 'UPI');
+  const [paymentDate, setPaymentDate] = useState(
+    record?.paidDate ? new Date(record.paidDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)
+  );
+  const [notes, setNotes] = useState(record?.notes || '');
+  const [sendWhatsApp, setSendWhatsApp] = useState(true);
+
+  const numPaid = Math.max(0, Number(amountPaid) || 0);
+  const remainingBalance = Math.max(0, totalDue - numPaid);
+
+  const status = remainingBalance === 0 ? 'Paid' : (numPaid > 0 ? 'Partially Paid' : 'Pending');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (onSavePayment) {
+      onSavePayment({
+        tenantId: tenant.id,
+        recordIdx: record.idx,
+        month,
+        year,
+        baseRent,
+        previousBalance,
+        totalDue,
+        paidAmount: numPaid,
+        balanceAmount: remainingBalance,
+        status,
+        paymentMethod: paymentMode,
+        paidDate: new Date(paymentDate).toISOString(),
+        notes,
+        sendWhatsApp,
+        clearedMonths: remainingBalance === 0 && previousBalance > 0 ? balanceInfo.previousUnpaidMonths : [],
+      });
+    }
+    onClose();
+  }
+
+  const whatsAppPreview = numPaid >= totalDue
+    ? `Hello ${tenant.fullName}, your rent payment of ${formatCurrency(numPaid)} for ${month} ${year} has been received in full${previousBalance > 0 ? ` (clearing ${formatCurrency(previousBalance)} previous balance)` : ''}. Thank you - Sakthi Property.`
+    : `Hello ${tenant.fullName}, received partial rent payment of ${formatCurrency(numPaid)} for ${month} ${year}. Balance amount remaining: ${formatCurrency(remainingBalance)}. This balance will be carried forward to your next transaction / final closing bill. Thank you - Sakthi Property.`;
+
+  return (
+    <Modal title={`Record Rent Payment — ${tenant.fullName}`} onClose={onClose} wide>
+      <form className="form" onSubmit={handleSubmit}>
+        <div className="rent-calc-card">
+          <div className="calc-row"><span>Tenant:</span><b>{tenant.fullName} ({tenant.phone || 'No phone'})</b></div>
+          <div className="calc-row"><span>Rented Property:</span><b>{property?.name || '—'}</b></div>
+          <div className="calc-row"><span>Billing Month:</span><b>{month} {year}</b></div>
+          <div className="calc-row"><span>Base Rent for Month:</span><b>{formatCurrency(baseRent)}</b></div>
+          {previousBalance > 0 && (
+            <div className="calc-row" style={{ color: '#b45309' }}>
+              <span>Previous Carried-forward Balance:</span>
+              <b>+ {formatCurrency(previousBalance)}</b>
+            </div>
+          )}
+          <div className="calc-row total-due">
+            <span>Total Amount Due:</span>
+            <b>{formatCurrency(totalDue)}</b>
+          </div>
+        </div>
+
+        <div className="form-grid">
+          <label>
+            Amount Paid Now (₹) *
+            <input
+              required
+              type="number"
+              min="0"
+              step="any"
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              placeholder="e.g. 7500"
+            />
+          </label>
+          <label>
+            Payment Mode
+            <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
+              <option value="UPI">UPI / GPay / PhonePe</option>
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer / NEFT</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </label>
+          <label>
+            Payment Date &amp; Time
+            <input
+              type="datetime-local"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+            />
+          </label>
+          <label>
+            Notes / Remarks
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Balance promised next week"
+            />
+          </label>
+        </div>
+
+        {remainingBalance > 0 ? (
+          <div className="balance-alert-box partial">
+            <strong>⚠️ Partial Payment:</strong> A balance of <b>{formatCurrency(remainingBalance)}</b> remains due.
+            This balance will be notified to the tenant and automatically tallied in the next transaction or final closing bill.
+          </div>
+        ) : (
+          <div className="balance-alert-box paid">
+            <strong>✓ Full Payment:</strong> All dues for {month} {year} {previousBalance > 0 ? 'and prior arrears ' : ''}are settled (₹0 balance).
+          </div>
+        )}
+
+        <div className="whatsapp-preview-box">
+          <div className="whatsapp-preview-header">
+            <Icon name="phone" size={14} /> WhatsApp Balance Notification Preview
+          </div>
+          <div>{whatsAppPreview}</div>
+        </div>
+
+        <label className="checkbox" style={{ margin: '8px 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={sendWhatsApp}
+            onChange={(e) => setSendWhatsApp(e.target.checked)}
+          />
+          Send WhatsApp notification with balance details to {tenant.fullName} ({tenant.phone || '—'})
+        </label>
+
+        <div className="form-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary">
+            <Icon name="check" size={16} /> Save Payment &amp; Record Balance
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* =========================================================
+   FINAL CLOSING BILL & SETTLEMENT MODAL
+   ========================================================= */
+function FinalClosingBillModal({ tenant, properties, bills, onClose, onSettleAndArchive, pushToast }) {
+  const property = properties.find((p) => p.id === tenant.propertyId);
+  const [closingDate, setClosingDate] = useState(
+    tenant.dateOfLeaving ? new Date(tenant.dateOfLeaving).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
+  );
+
+  const advance = Number(tenant.advanceAmount || 0);
+
+  // Compute all unpaid and partial rent balances across all months
+  const rentDues = useMemo(() => {
+    const history = Array.isArray(tenant.rentHistory) ? tenant.rentHistory : [];
+    const list = [];
+    history.forEach((rec) => {
+      const due = Number(rec.totalDue || rec.amount || 0);
+      const paid = Number(rec.paidAmount !== undefined ? rec.paidAmount : (rec.status === 'Paid' ? due : 0));
+      const bal = Number(rec.balanceAmount !== undefined ? rec.balanceAmount : (rec.status === 'Paid' ? 0 : Math.max(0, due - paid)));
+      if (bal > 0 || rec.status !== 'Paid') {
+        list.push({
+          month: rec.month,
+          year: rec.year,
+          amount: due,
+          paidAmount: paid,
+          balanceAmount: bal,
+          status: rec.status,
+          notes: rec.notes || (paid > 0 ? `Paid ${formatCurrency(paid)} of ${formatCurrency(due)}` : 'Full month rent unpaid'),
+        });
+      }
+    });
+    return list;
+  }, [tenant]);
+
+  const totalRentDue = rentDues.reduce((s, r) => s + Number(r.balanceAmount || 0), 0);
+
+  // Editable deductions list
+  const [deductions, setDeductions] = useState([
+    { title: 'Painting & Maintenance charges', amount: '' },
+    { title: 'Cleaning & Sanitation charges', amount: '' },
+    { title: 'Electricity / EB final meter adjustment', amount: '' },
+  ]);
+  const [notes, setNotes] = useState('');
+
+  function addDeductionRow() {
+    setDeductions((ds) => [...ds, { title: '', amount: '' }]);
+  }
+  function removeDeductionRow(idx) {
+    setDeductions((ds) => ds.filter((_, i) => i !== idx));
+  }
+  function updateDeduction(idx, field, value) {
+    setDeductions((ds) => ds.map((d, i) => i === idx ? { ...d, [field]: value } : d));
+  }
+
+  const validDeductions = deductions.filter((d) => d.title && Number(d.amount) > 0).map((d) => ({
+    title: d.title,
+    amount: Number(d.amount),
+  }));
+  const totalDeductions = validDeductions.reduce((s, d) => s + d.amount, 0);
+
+  const netSettlement = advance - totalRentDue - totalDeductions;
+  const isRefund = netSettlement >= 0;
+
+  const closingData = {
+    closingDate,
+    advanceAmount: advance,
+    rentDues,
+    totalRentDue,
+    deductions: validDeductions,
+    totalDeductions,
+    netSettlement,
+    notes,
+  };
+
+  function handleDownloadPDF() {
+    downloadClosingBillPDF(tenant, property, closingData);
+  }
+
+  function handleSendWhatsApp() {
+    const msg = `Hello ${tenant.fullName},\nHere is your Tenancy Final Closing & Settlement Bill for ${property?.name || 'Property'}:\n\n` +
+      `• Tenancy Period: ${formatDate(tenant.dateOfComing)} to ${formatDate(closingDate)}\n` +
+      `• Security Deposit / Advance: ${formatCurrency(advance)}\n` +
+      `• Outstanding Rent Arrears: -${formatCurrency(totalRentDue)}\n` +
+      `• Deductions: -${formatCurrency(totalDeductions)}\n\n` +
+      `► NET ${isRefund ? 'REFUNDABLE TO YOU' : 'BALANCE PAYABLE BY YOU'}: ${formatCurrency(Math.abs(netSettlement))}\n\n` +
+      `Thank you - Sakthi Property Management.`;
+    openWhatsAppForTenant(tenant, msg);
+    if (pushToast) pushToast('WhatsApp closing bill prepared');
+  }
+
+  function handleCompleteSettlement() {
+    if (onSettleAndArchive) {
+      onSettleAndArchive(tenant.id, closingData);
+    }
+    if (pushToast) pushToast(`Tenancy settled for ${tenant.fullName}. Property marked as Vacant.`);
+    onClose();
+  }
+
+  return (
+    <Modal title={`Final Closing Bill & Settlement — ${tenant.fullName}`} onClose={onClose} wide>
+      <div className="closing-bill-ledger">
+        <div className="closing-section">
+          <h4>Tenancy &amp; Property Details</h4>
+          <div className="closing-row"><span>Tenant Name:</span><b>{tenant.fullName} ({tenant.phone || '—'})</b></div>
+          <div className="closing-row"><span>Rented Property:</span><b>{property?.name || '—'} ({property?.type || 'Property'})</b></div>
+          <div className="closing-row">
+            <span>Tenancy Period:</span>
+            <span>{formatDate(tenant.dateOfComing)} &rarr; <input type="date" value={closingDate} onChange={(e) => setClosingDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }} /></span>
+          </div>
+        </div>
+
+        <div className="closing-section">
+          <h4>1. Security Deposit / Advance Received</h4>
+          <div className="closing-row">
+            <span>Advance Deposit (Credited at commencement):</span>
+            <b style={{ color: '#166534', fontSize: '1.05rem' }}>+ {formatCurrency(advance)}</b>
+          </div>
+        </div>
+
+        <div className="closing-section">
+          <h4>2. Outstanding Rent Balance Tally ({rentDues.length} {rentDues.length === 1 ? 'record' : 'records'})</h4>
+          {rentDues.length === 0 ? (
+            <p className="muted small">✓ All previous monthly rent payments are fully settled. No arrears.</p>
+          ) : (
+            <div className="table-wrap" style={{ marginTop: '8px' }}>
+              <table>
+                <thead><tr><th>Month &amp; Year</th><th>Rent Due</th><th>Amount Paid</th><th>Balance Due</th><th>Remarks</th></tr></thead>
+                <tbody>
+                  {rentDues.map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.month} {r.year}</td>
+                      <td>{formatCurrency(r.amount)}</td>
+                      <td>{formatCurrency(r.paidAmount)}</td>
+                      <td style={{ color: '#b91c1c', fontWeight: '700' }}>{formatCurrency(r.balanceAmount)}</td>
+                      <td className="small muted">{r.notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th colSpan="3">Total Unpaid Rent Arrears Tally:</th>
+                    <th colSpan="2" style={{ color: '#b91c1c', fontSize: '.95rem' }}>- {formatCurrency(totalRentDue)}</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="closing-section">
+          <h4>3. Utility, Maintenance &amp; Repair Deductions</h4>
+          {deductions.map((d, i) => (
+            <div className="deduction-item-row" key={i}>
+              <input
+                placeholder="Deduction title (e.g. Painting charges)"
+                value={d.title}
+                onChange={(e) => updateDeduction(i, 'title', e.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                placeholder="Amount (₹)"
+                value={d.amount}
+                onChange={(e) => updateDeduction(i, 'amount', e.target.value)}
+              />
+              <button type="button" className="icon-btn danger" onClick={() => removeDeductionRow(i)} title="Remove"><Icon name="x" size={13} /></button>
+            </div>
+          ))}
+          <button type="button" className="btn btn-outline btn-xs" onClick={addDeductionRow} style={{ marginTop: '6px' }}>
+            <Icon name="plus" size={12} /> Add deduction item
+          </button>
+          {totalDeductions > 0 && (
+            <div className="closing-row" style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1' }}>
+              <span>Total Deductions:</span>
+              <b style={{ color: '#b91c1c' }}>- {formatCurrency(totalDeductions)}</b>
+            </div>
+          )}
+        </div>
+
+        <div className={`settlement-card ${isRefund ? 'refundable' : 'payable'}`}>
+          <div className="settlement-title">
+            {isRefund ? '✓ Net Refund Payable to Tenant' : '⚠️ Net Balance Due from Tenant'}
+          </div>
+          <div className="settlement-value">
+            {formatCurrency(Math.abs(netSettlement))}
+          </div>
+          <p className="small">
+            {isRefund
+              ? `Advance deposit of ${formatCurrency(advance)} exceeds all tallied rent dues and deductions. Refund ${formatCurrency(netSettlement)} to tenant.`
+              : `Total rent dues and deductions (${formatCurrency(totalRentDue + totalDeductions)}) exceed advance deposit (${formatCurrency(advance)}). Tenant owes ${formatCurrency(Math.abs(netSettlement))}.`}
+          </p>
+        </div>
+
+        <div className="form-actions" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="btn btn-outline" onClick={handleDownloadPDF}>
+              <Icon name="download" size={15} /> Download Closing Bill PDF
+            </button>
+            <button type="button" className="btn btn-outline" onClick={handleSendWhatsApp}>
+              <Icon name="phone" size={15} /> Send on WhatsApp
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
+            {tenant.status !== 'Archived' && (
+              <button type="button" className="btn btn-danger" onClick={handleCompleteSettlement}>
+                <Icon name="archive" size={15} /> Settle &amp; Archive Tenant (Free Property)
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* =========================================================
    RENT PAGE
    ========================================================= */
-function RentPage({ tenants, properties, onMarkPaid, sendMessage, pushToast, onBack }) {
+function RentPage({ tenants, properties, onMarkPaid, onSavePayment, sendMessage, pushToast, onBack, onSettleAndArchive, bills }) {
   const [tenantQuery, setTenantQuery] = useState('');
   const [historyOf, setHistoryOf] = useState(null);
+  const [paymentModal, setPaymentModal] = useState(null);
+  const [closingBillTenant, setClosingBillTenant] = useState(null);
   const [monthFilter, setMonthFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [buildingFilter, setBuildingFilter] = useState('All');
@@ -1581,13 +2227,46 @@ function RentPage({ tenants, properties, onMarkPaid, sendMessage, pushToast, onB
   const now = new Date();
   const currentMonth = MONTHS[now.getMonth()];
   const currentYear = now.getFullYear();
+
   tenants.forEach((t) => {
     if (!showPrevious && t.status === 'Archived') return;
     if (showPrevious && t.status !== 'Archived') return;
     if (!(t.rentHistory || []).length) {
-      rows.push({ tenantId: t.id, tenantName: t.fullName, tenantPhone: t.phone, propertyId: t.propertyId, idx: -1, month: currentMonth, year: currentYear, amount: Number(t.rentAmount || 0), status: 'Pending' });
+      const due = Number(t.rentAmount || 0);
+      rows.push({
+        tenantId: t.id,
+        tenantName: t.fullName,
+        tenantPhone: t.phone,
+        propertyId: t.propertyId,
+        idx: -1,
+        month: currentMonth,
+        year: currentYear,
+        amount: due,
+        totalDue: due,
+        paidAmount: 0,
+        balanceAmount: due,
+        status: 'Pending',
+        tenantStatus: t.status,
+      });
     } else {
-      (t.rentHistory || []).forEach((r, idx) => rows.push({ tenantId: t.id, tenantName: t.fullName, tenantPhone: t.phone, propertyId: t.propertyId, idx, ...r, tenantStatus: t.status }));
+      (t.rentHistory || []).forEach((r, idx) => {
+        const due = Number(r.totalDue || r.amount || 0);
+        const paid = Number(r.paidAmount !== undefined ? r.paidAmount : (r.status === 'Paid' ? due : 0));
+        const bal = Number(r.balanceAmount !== undefined ? r.balanceAmount : (r.status === 'Paid' ? 0 : Math.max(0, due - paid)));
+        rows.push({
+          tenantId: t.id,
+          tenantName: t.fullName,
+          tenantPhone: t.phone,
+          propertyId: t.propertyId,
+          idx,
+          ...r,
+          amount: due,
+          totalDue: due,
+          paidAmount: paid,
+          balanceAmount: bal,
+          tenantStatus: t.status,
+        });
+      });
     }
   });
 
@@ -1598,6 +2277,21 @@ function RentPage({ tenants, properties, onMarkPaid, sendMessage, pushToast, onB
     (buildingFilter === 'All' || r.propertyId === buildingFilter)
   );
 
+  const totalExpected = filtered.reduce((s, r) => s + Number(r.totalDue || r.amount || 0), 0);
+  const totalCollected = filtered.reduce((s, r) => s + Number(r.paidAmount || 0), 0);
+  const totalBalance = filtered.reduce((s, r) => s + Number(r.balanceAmount || 0), 0);
+
+  function handleRemind(tenant, r) {
+    if (r.paidAmount > 0 && r.balanceAmount > 0) {
+      const msg = `Hello ${tenant.fullName}, a balance amount of ${formatCurrency(r.balanceAmount)} is remaining for your ${r.month} ${r.year} rent (${formatCurrency(r.paidAmount)} paid of ${formatCurrency(r.totalDue)}). Kindly settle it at your earliest convenience. Thank you - Sakthi Property.`;
+      openWhatsAppForTenant(tenant, msg);
+      if (pushToast) pushToast(`Balance reminder sent to ${tenant.fullName}`);
+    } else {
+      if (sendMessage) sendMessage(tenant, `Rent of ${formatCurrency(r.totalDue || r.amount)} for ${r.month} ${r.year} is due`);
+      if (pushToast) pushToast('Reminder prepared');
+    }
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -1606,36 +2300,134 @@ function RentPage({ tenants, properties, onMarkPaid, sendMessage, pushToast, onB
           <div><h2>Rent collection</h2><p className="muted">Track current and previous tenant rent records.</p></div>
         </div>
       </div>
+
       <div className="toolbar rent-toolbar">
         <div className="search-box"><Icon name="search" size={16} /><input aria-label="Search rent by tenant name or phone" placeholder="Search tenant by name or phone" value={tenantQuery} onChange={(e) => setTenantQuery(e.target.value)} /></div>
         <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}><option>All</option>{MONTHS.map((m) => <option key={m}>{m}</option>)}</select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option>All</option><option>Paid</option><option>Pending</option><option>Overdue</option></select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option>All</option>
+          <option>Paid</option>
+          <option>Partially Paid</option>
+          <option>Pending</option>
+          <option>Overdue</option>
+        </select>
         <select value={buildingFilter} onChange={(e) => setBuildingFilter(e.target.value)}><option value="All">All buildings</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
         <label className="checkbox previous-rent-toggle"><input type="checkbox" checked={showPrevious} onChange={(e) => setShowPrevious(e.target.checked)} /> Previous tenants</label>
       </div>
+
+      <div className="rent-summary-chips">
+        <div className="rent-chip"><span>Expected:</span> <b>{formatCurrency(totalExpected)}</b></div>
+        <div className="rent-chip"><span>Collected:</span> <b style={{ color: '#166534' }}>{formatCurrency(totalCollected)}</b></div>
+        <div className="rent-chip"><span>Balance Pending:</span> <b style={totalBalance > 0 ? { color: '#b91c1c' } : {}}>{formatCurrency(totalBalance)}</b></div>
+      </div>
+
       <div className="rent-mode-note">{showPrevious ? 'Showing archived / previous tenant rent history.' : 'Showing active tenant rent history.'}</div>
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Tenant</th><th>Property</th><th>Month</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Tenant</th>
+              <th>Property</th>
+              <th>Month</th>
+              <th>Rent Due</th>
+              <th>Paid</th>
+              <th>Balance</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan="6"><EmptyState text={showPrevious ? 'No previous tenant rent records' : 'No current rent records'} /></td></tr>}
+            {filtered.length === 0 && <tr><td colSpan="8"><EmptyState text={showPrevious ? 'No previous tenant rent records' : 'No current rent records'} /></td></tr>}
             {filtered.map((r, i) => {
               const tenant = tenants.find((t) => t.id === r.tenantId);
               const property = properties.find((p) => p.id === r.propertyId);
-              return <tr key={`${r.tenantId}-${r.idx}-${i}`}>
-                <td><div className="rent-tenant-cell"><button type="button" className="link-btn" aria-label={`View rent history for ${r.tenantName}`} onClick={() => setHistoryOf(tenant)}>{r.tenantName}</button>{showPrevious && <span className="muted small">Previous tenant</span>}</div></td>
-                <td>{getPropertyName(properties, r.propertyId)}</td><td>{r.month} {r.year}</td><td>{formatCurrency(r.amount)}</td>
-                <td><Badge text={r.status} tone={r.status === 'Paid' ? 'success' : r.status === 'Overdue' ? 'danger' : 'warning'} /></td>
-                <td className="row-actions rent-row-actions">
-                  <button className="btn btn-sm btn-outline" onClick={() => downloadRentHistoryPDF(tenant, property)}><Icon name="download" size={14}/> PDF</button>
-                  {!showPrevious && r.status !== 'Paid' && <button className="btn btn-sm btn-success" onClick={() => { onMarkPaid(r.tenantId, r.idx); pushToast('Marked as paid and WhatsApp message prepared'); }}>Mark paid</button>}
-                  {!showPrevious && r.status !== 'Paid' && <button className="btn btn-sm btn-outline" onClick={() => { sendMessage(tenant, `Rent of ${formatCurrency(r.amount)} for ${r.month} is due`); pushToast('Reminder prepared'); }}>Remind</button>}
-                </td>
-              </tr>;
+              return (
+                <tr key={`${r.tenantId}-${r.idx}-${i}`}>
+                  <td>
+                    <div className="rent-tenant-cell">
+                      <button type="button" className="link-btn" aria-label={`View rent history for ${r.tenantName}`} onClick={() => setHistoryOf(tenant)}>
+                        {r.tenantName}
+                      </button>
+                      {showPrevious && <span className="muted small">Previous tenant</span>}
+                    </div>
+                  </td>
+                  <td>{getPropertyName(properties, r.propertyId)}</td>
+                  <td>{r.month} {r.year}</td>
+                  <td>{formatCurrency(r.totalDue || r.amount)}</td>
+                  <td>{formatCurrency(r.paidAmount || 0)}</td>
+                  <td>
+                    {r.balanceAmount > 0 ? (
+                      <span className="badge badge-warning" title="Balance due carried forward">
+                        {formatCurrency(r.balanceAmount)}
+                      </span>
+                    ) : (
+                      <span className="muted">₹0</span>
+                    )}
+                  </td>
+                  <td>
+                    <Badge
+                      text={r.status}
+                      tone={r.status === 'Paid' ? 'success' : r.status === 'Partially Paid' ? 'warning' : r.status === 'Overdue' ? 'danger' : 'warning'}
+                    />
+                  </td>
+                  <td className="row-actions rent-row-actions">
+                    <button className="btn btn-sm btn-outline" onClick={() => downloadRentHistoryPDF(tenant, property)}><Icon name="download" size={14}/> PDF</button>
+                    {!showPrevious && r.status !== 'Paid' && (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => setPaymentModal({ tenant, record: r, idx: r.idx })}
+                      >
+                        <Icon name="cash" size={14} /> Record payment
+                      </button>
+                    )}
+                    {!showPrevious && r.status === 'Paid' && (
+                      <button
+                        className="btn btn-sm btn-outline"
+                        onClick={() => setPaymentModal({ tenant, record: r, idx: r.idx })}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {!showPrevious && r.status !== 'Paid' && (
+                      <button className="btn btn-sm btn-outline" onClick={() => handleRemind(tenant, r)}>Remind</button>
+                    )}
+                    <button
+                      className="btn btn-sm btn-outline"
+                      title="Final Closing Bill &amp; Settlement"
+                      onClick={() => setClosingBillTenant(tenant)}
+                    >
+                      <Icon name="receipt" size={14} /> Closing bill
+                    </button>
+                  </td>
+                </tr>
+              );
             })}
           </tbody>
         </table>
       </div>
+
+      {paymentModal && (
+        <RentPaymentModal
+          tenant={paymentModal.tenant}
+          record={paymentModal.record}
+          properties={properties}
+          onClose={() => setPaymentModal(null)}
+          onSavePayment={onSavePayment || ((data) => onMarkPaid(data.tenantId, data.recordIdx))}
+          pushToast={pushToast}
+        />
+      )}
+
+      {closingBillTenant && (
+        <FinalClosingBillModal
+          tenant={closingBillTenant}
+          properties={properties}
+          bills={bills || []}
+          onClose={() => setClosingBillTenant(null)}
+          onSettleAndArchive={onSettleAndArchive}
+          pushToast={pushToast}
+        />
+      )}
+
       {historyOf && (
         <Modal title={`Rent history — ${historyOf.fullName}`} onClose={() => setHistoryOf(null)} wide>
           <div className="rent-history-toolbar">
@@ -1650,17 +2442,24 @@ function RentPage({ tenants, properties, onMarkPaid, sendMessage, pushToast, onB
           </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Month</th><th>Amount</th><th>Status</th><th>Transaction date &amp; time</th></tr></thead>
+              <thead><tr><th>Month</th><th>Rent Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Transaction date &amp; time</th></tr></thead>
               <tbody>
-                {(historyOf.rentHistory || []).map((record, index) => (
-                  <tr key={`${record.year}-${record.month}-${index}`}>
-                    <td>{record.month} {record.year}</td>
-                    <td>{formatCurrency(record.amount)}</td>
-                    <td><Badge text={record.status} tone={record.status === 'Paid' ? 'success' : record.status === 'Overdue' ? 'danger' : 'warning'} /></td>
-                    <td>{formatDateTime(record.transactionDate || record.paidDate)}</td>
-                  </tr>
-                ))}
-                {(!historyOf.rentHistory || historyOf.rentHistory.length === 0) && <tr><td colSpan="4"><EmptyState text="No rent history yet" /></td></tr>}
+                {(historyOf.rentHistory || []).map((record, index) => {
+                  const due = Number(record.totalDue || record.amount || 0);
+                  const paid = Number(record.paidAmount !== undefined ? record.paidAmount : (record.status === 'Paid' ? due : 0));
+                  const bal = Number(record.balanceAmount !== undefined ? record.balanceAmount : (record.status === 'Paid' ? 0 : Math.max(0, due - paid)));
+                  return (
+                    <tr key={`${record.year}-${record.month}-${index}`}>
+                      <td>{record.month} {record.year}</td>
+                      <td>{formatCurrency(due)}</td>
+                      <td>{formatCurrency(paid)}</td>
+                      <td style={bal > 0 ? { color: '#b91c1c', fontWeight: '700' } : {}}>{formatCurrency(bal)}</td>
+                      <td><Badge text={record.status} tone={record.status === 'Paid' ? 'success' : record.status === 'Partially Paid' ? 'warning' : record.status === 'Overdue' ? 'danger' : 'warning'} /></td>
+                      <td>{formatDateTime(record.transactionDate || record.paidDate)}</td>
+                    </tr>
+                  );
+                })}
+                {(!historyOf.rentHistory || historyOf.rentHistory.length === 0) && <tr><td colSpan="6"><EmptyState text="No rent history yet" /></td></tr>}
               </tbody>
             </table>
           </div>
@@ -2339,8 +3138,16 @@ export default function App({ initialUser }) {
   const [notifPrefs, setNotifPrefs] = useState({ rentReminders: true, maintenanceAlerts: true, newTenantAlerts: true, automaticMessages: true });
   const [toasts, setToasts] = useState([]);
   const [page, setPage] = useState('dashboard');
+  const [propertyFilter, setPropertyFilter] = useState({ status: 'All', type: 'All' });
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  function navigateToProperties(filter) {
+    if (filter) {
+      setPropertyFilter((prev) => ({ ...prev, ...filter }));
+    }
+    setPage('properties');
+  }
 
   // Browser storage is the offline/standalone data source. A reachable,
   // authenticated API replaces it on load and all writes are mirrored there.
@@ -2514,6 +3321,146 @@ export default function App({ initialUser }) {
     openWhatsAppForTenant(tenant, message);
   }
 
+  function saveRentPayment(paymentData) {
+    const {
+      tenantId,
+      recordIdx,
+      month,
+      year,
+      baseRent,
+      totalDue,
+      paidAmount,
+      balanceAmount,
+      status,
+      paymentMethod,
+      paidDate,
+      notes,
+      sendWhatsApp,
+      clearedMonths,
+    } = paymentData;
+
+    const tenant = tenants.find((t) => t.id === tenantId);
+    if (!tenant) return;
+
+    const history = Array.isArray(tenant.rentHistory) ? [...tenant.rentHistory] : [];
+    const transactionDate = paidDate || new Date().toISOString();
+
+    let targetRecord = null;
+    if (recordIdx === -1 || recordIdx === undefined) {
+      targetRecord = {
+        id: uid(),
+        month,
+        year,
+        amount: baseRent,
+        totalDue,
+        paidAmount,
+        balanceAmount,
+        status,
+        paymentMethod,
+        paidDate: transactionDate,
+        transactionDate,
+        notes,
+      };
+      history.unshift(targetRecord);
+    } else if (history[recordIdx]) {
+      targetRecord = {
+        ...history[recordIdx],
+        amount: baseRent || history[recordIdx].amount,
+        totalDue,
+        paidAmount,
+        balanceAmount,
+        status,
+        paymentMethod,
+        paidDate: transactionDate,
+        transactionDate,
+        notes,
+      };
+      history[recordIdx] = targetRecord;
+    }
+
+    if (Array.isArray(clearedMonths) && clearedMonths.length > 0) {
+      clearedMonths.forEach((clr) => {
+        const pIdx = history.findIndex((h) => h.month === clr.month && Number(h.year) === Number(clr.year) && h !== targetRecord);
+        if (pIdx !== -1) {
+          history[pIdx] = {
+            ...history[pIdx],
+            status: 'Paid',
+            balanceAmount: 0,
+            notes: history[pIdx].notes ? `${history[pIdx].notes} (Cleared with ${month} ${year} payment)` : `Cleared with ${month} ${year} payment`,
+          };
+          if (history[pIdx].id) {
+            updateRentRecord(history[pIdx].id, { status: 'Paid', balanceAmount: 0 }).catch(() => {});
+          }
+        }
+      });
+    }
+
+    const updatedTenant = { ...tenant, rentHistory: history };
+    setTenants((ts) => ts.map((t) => (t.id === tenantId ? updatedTenant : t)));
+    persistTenant(tenantId, updatedTenant).catch(() => {});
+
+    if (targetRecord?.id && recordIdx !== -1) {
+      updateRentRecord(targetRecord.id, {
+        status,
+        paidAmount,
+        balanceAmount,
+        paidDate: transactionDate,
+        notes,
+      }).catch(() => {});
+    } else {
+      createRentRecord(tenantId, {
+        ...targetRecord,
+        amount: baseRent,
+        month,
+        year,
+        status,
+        paidAmount,
+        balanceAmount,
+        paidDate: transactionDate,
+        notes,
+      }).catch(() => {});
+    }
+
+    const notifMsg = `Rent payment: ${tenant.fullName} - ${formatCurrency(paidAmount)} for ${month} ${year}${balanceAmount > 0 ? ` (Balance remaining: ${formatCurrency(balanceAmount)})` : ''}`;
+    pushNotification(notifMsg, 'send');
+    pushToast(`Payment recorded for ${tenant.fullName}`);
+
+    if (sendWhatsApp) {
+      const msg = balanceAmount > 0
+        ? `Hello ${tenant.fullName}, received partial rent payment of ${formatCurrency(paidAmount)} for ${month} ${year}. Balance amount remaining: ${formatCurrency(balanceAmount)}. This balance will be carried forward to your next transaction / final closing bill. Thank you - Sakthi Property.`
+        : `Hello ${tenant.fullName}, your rent payment of ${formatCurrency(paidAmount)} for ${month} ${year} has been received in full. Thank you - Sakthi Property.`;
+      openWhatsAppForTenant(tenant, msg);
+    }
+  }
+
+  function settleAndArchiveTenant(tenantId, closingData) {
+    const tenant = tenants.find((t) => t.id === tenantId);
+    if (!tenant) return;
+
+    const leavingDate = closingData?.closingDate || new Date().toISOString().slice(0, 10);
+    const updatedTenant = {
+      ...tenant,
+      status: 'Archived',
+      dateOfLeaving: leavingDate,
+      closingSettlement: closingData,
+    };
+
+    setTenants((ts) => ts.map((t) => (t.id === tenantId ? updatedTenant : t)));
+    persistTenant(tenantId, updatedTenant).catch(() => {});
+    setTenantStatus(tenantId, 'Archived').catch(() => {});
+
+    if (tenant.propertyId) {
+      setProperties((ps) => ps.map((p) => (p.id === tenant.propertyId ? { ...p, status: 'Available' } : p)));
+      const property = properties.find((p) => p.id === tenant.propertyId);
+      if (property) {
+        persistProperty(property.id, { ...property, status: 'Available' }).catch(() => {});
+      }
+    }
+
+    pushNotification(`Tenancy settled and archived: ${tenant.fullName}`, 'alert');
+    pushToast(`Tenancy settled for ${tenant.fullName}. Property marked as Vacant.`);
+  }
+
   function addBill(b) { setBills((bs) => [b, ...bs]); createBill(b).then((saved) => setBills((bs) => bs.map((item) => item.id === b.id ? saved : item))).catch(() => {}); }
   function markBillPaid(id) { setBills((bs) => bs.map((b) => (b.id === id ? { ...b, status: 'Paid' } : b))); updateBill(id, { status: 'Paid' }).catch(() => {}); }
 
@@ -2541,18 +3488,18 @@ export default function App({ initialUser }) {
 
   function renderPage() {
     switch (page) {
-      case 'dashboard': return <DashboardPage properties={properties} tenants={tenants} bills={bills} notifications={notifications} setPage={setPage} />;
-      case 'properties': return <PropertiesPage properties={properties} onAdd={addProperty} onUpdate={updateProperty} onDelete={deleteProperty} onToggleSale={toggleSale} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
+      case 'dashboard': return <DashboardPage properties={properties} tenants={tenants} bills={bills} notifications={notifications} setPage={setPage} onNavigateToProperties={navigateToProperties} />;
+      case 'properties': return <PropertiesPage properties={properties} filter={propertyFilter} onFilterChange={setPropertyFilter} onAdd={addProperty} onUpdate={updateProperty} onDelete={deleteProperty} onToggleSale={toggleSale} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'calculator': return <CalculatorPage onBack={() => setPage('dashboard')} />;
-      case 'tenants': return <TenantsPage tenants={tenants} properties={properties} onAdd={addTenant} onUpdate={updateTenant} onArchive={archiveTenant} onRestore={restoreTenant} pushToast={pushToast} sendMessage={sendMessage} onBack={() => setPage('dashboard')} />;
-      case 'rent': return <RentPage tenants={tenants} properties={properties} onMarkPaid={markRentPaid} sendMessage={sendMessage} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
+      case 'tenants': return <TenantsPage tenants={tenants} properties={properties} bills={bills} onAdd={addTenant} onUpdate={updateTenant} onArchive={archiveTenant} onRestore={restoreTenant} onSettleAndArchive={settleAndArchiveTenant} pushToast={pushToast} sendMessage={sendMessage} onBack={() => setPage('dashboard')} />;
+      case 'rent': return <RentPage tenants={tenants} properties={properties} bills={bills} onMarkPaid={markRentPaid} onSavePayment={saveRentPayment} onSettleAndArchive={settleAndArchiveTenant} sendMessage={sendMessage} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'bills': return <BillsPage bills={bills} properties={properties} onAdd={addBill} onMarkPaid={markBillPaid} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'maintenance': return <MaintenancePage requests={maintenance} properties={properties} onAdd={addMaintenance} onStatusChange={changeMaintenanceStatus} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'reports': return <ReportsPage tenants={tenants} properties={properties} onBack={() => setPage('dashboard')} />;
       case 'notifications': return <NotificationsPage notifications={notifications} onMarkRead={markRead} onMarkAllRead={markAllRead} onBack={() => setPage('dashboard')} />;
       case 'whatsapp': return <WhatsAppPage tenants={tenants} properties={properties} managers={managers} adminProfile={adminProfile} setPage={setPage} />;
       case 'settings': return <SettingsPage managers={managers} onAddManager={addManager} onRemoveManager={removeManager} properties={properties} onToggleListed={toggleListed} onToggleSale={toggleSale} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} pushToast={pushToast} onDeleteAllData={deleteAllData} onNavigate={setPage} adminProfile={adminProfile} onSaveProfile={saveAdminProfile} onBack={() => setPage('dashboard')} />;
-      default: return <DashboardPage properties={properties} tenants={tenants} bills={bills} notifications={notifications} setPage={setPage} />;
+      default: return <DashboardPage properties={properties} tenants={tenants} bills={bills} notifications={notifications} setPage={setPage} onNavigateToProperties={navigateToProperties} />;
     }
   }
 

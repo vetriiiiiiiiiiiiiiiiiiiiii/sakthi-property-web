@@ -86,6 +86,12 @@ sudo -u sakthi-property env VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleuser
   npm run build
 ```
 
+For username-and-password-only sign-in, do not set
+`VITE_GOOGLE_CLIENT_ID` when building the frontend and leave `GOOGLE_CLIENT_ID`
+empty in the server environment. The sign-in page will then show only the
+username and password form. Rebuild and publish the frontend after changing
+the build setting.
+
 Publish the generated static files to the directory readable by Nginx:
 
 ```sh
@@ -205,9 +211,13 @@ sudo certbot renew --dry-run
 
 ## 8. Create the initial administrator and verify
 
-Create the initial admin exactly once. Do not use real credentials in shell
-history; use your terminal's secure input method or a password manager to
-prepare the request.
+The username and password are chosen when creating the initial administrator;
+the application does not generate default credentials. Create this account
+exactly once. Choose a username of 3-32 characters using lowercase letters,
+numbers, dots, underscores, or hyphens. The password must be at least 12
+characters and include a lowercase letter, uppercase letter, number, and
+special character. Do not use real credentials in shell history; use your
+terminal's secure input method or a password manager to prepare the request.
 
 ```sh
 curl --fail --request POST https://YOUR_DOMAIN/api/auth/setup \
@@ -219,6 +229,11 @@ curl --fail --request POST https://YOUR_DOMAIN/api/auth/setup \
 After successful setup, remove the `AUTH_SETUP_KEY` line from
 `/etc/sakthi-property/server.env` and restart the service. The setup endpoint
 will then reject requests, and it also refuses creation once an admin exists.
+If an administrator already exists and was only using Google sign-in, use
+**Forgot password?** on the sign-in page with that account's email to set a
+password. This requires `RESEND_API_KEY` and a verified `MAIL_FROM` sender to
+be configured. The setup endpoint cannot create another account or replace an
+existing password.
 Verify database connectivity and HTTPS:
 
 ```sh

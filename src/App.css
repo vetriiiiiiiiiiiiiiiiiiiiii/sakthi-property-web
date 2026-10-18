@@ -7531,3 +7531,223 @@ table td{font-size:.88rem;line-height:1.45;}
   height: 1px !important;
   background: #e2e8f0 !important;
 }
+
+/* =========================================================
+   VACANT & OCCUPIED PROPERTY FILTERS + QUICK TOGGLE
+   ========================================================= */
+.properties-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.status-filter-pills {
+  display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  gap: 2px;
+}
+.filter-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 600;
+  transition: all .15s ease;
+}
+.filter-pill:hover {
+  color: var(--text);
+}
+.filter-pill.active {
+  background: var(--navy);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(15, 31, 61, 0.2);
+}
+.status-toggle-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform .15s ease;
+}
+.status-toggle-btn:hover {
+  transform: scale(1.05);
+}
+.legend-clickable {
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background .15s ease;
+}
+.legend-clickable:hover {
+  background: rgba(15, 31, 61, 0.05);
+}
+
+/* =========================================================
+   RENT PAYMENT & BALANCE TALLY MODAL
+   ========================================================= */
+.rent-calc-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .88rem;
+  color: var(--muted);
+}
+.calc-row b {
+  color: var(--text);
+  font-size: .95rem;
+}
+.calc-row.total-due {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: .98rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+.calc-row.total-due b {
+  font-size: 1.15rem;
+  color: #1e3a8a;
+}
+.balance-alert-box {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: .85rem;
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+.balance-alert-box.partial {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+.balance-alert-box.paid {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+.whatsapp-preview-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: .8rem;
+  color: #166534;
+  margin: 12px 0;
+  line-height: 1.45;
+}
+.whatsapp-preview-header {
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* =========================================================
+   FINAL CLOSING BILL & SETTLEMENT
+   ========================================================= */
+.closing-bill-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.closing-section {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.closing-section h4 {
+  font-size: .95rem;
+  color: var(--navy);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.closing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: .88rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.closing-row:last-child {
+  border-bottom: none;
+}
+.settlement-card {
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+.settlement-card.refundable {
+  background: #ecfdf5;
+  border: 2px solid #34d399;
+  color: #065f46;
+}
+.settlement-card.payable {
+  background: #fef2f2;
+  border: 2px solid #f87171;
+  color: #991b1b;
+}
+.settlement-card.zero {
+  background: #f8fafc;
+  border: 2px solid #cbd5e1;
+  color: #334155;
+}
+.settlement-title {
+  font-size: .85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.settlement-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+.deduction-item-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.rent-summary-chips {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.rent-chip {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: .82rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rent-chip b {
+  font-size: .95rem;
+}

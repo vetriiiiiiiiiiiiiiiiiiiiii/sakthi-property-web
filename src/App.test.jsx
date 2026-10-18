@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import App, { calculateLandArea, DashboardPage, TenantsPage } from './App';
+import App, { calculateLandArea, calculateTenantBalances, DashboardPage, TenantsPage } from './App';
 
 test('converts length and breadth to acre, cent, square feet, and kuli', () => {
   expect(calculateLandArea(20, 30)).toEqual({
@@ -167,5 +167,71 @@ test('logs out and returns to login screen', async () => {
   await waitFor(() => {
     expect(screen.getByRole('region', { name: 'Login form' })).toBeDefined();
   });
+});
+
+test('calculates and tallies carried-forward balance for partial rent payments', () => {
+  const tenant = {
+    id: 't-1',
+    fullName: 'Ravi',
+    rentAmount: 8000,
+    rentHistory: [
+      {
+        month: 'January',
+        year: 2026,
+        amount: 8000,
+        totalDue: 8000,
+        paidAmount: 7500,
+        balanceAmount: 500,
+        status: 'Partially Paid',
+      },
+    ],
+  };
+
+  // Next transaction: February 2026
+  const balanceInfo = calculateTenantBalances(tenant, 'February', 2026);
+  expect(balanceInfo.previousOutstanding).toBe(500);
+  expect(balanceInfo.previousUnpaidMonths).toEqual([
+    { month: 'January', year: 2026, balance: 500, amount: 8000, paidAmount: 7500 },
+  ]);
+
+  // Total due for February will be base rent (8000) + carried balance (500) = 8500
+  const febTotalDue = Number(tenant.rentAmount) + balanceInfo.previousOutstanding;
+  expect(febTotalDue).toBe(8500);
+});
+
+test('dashboard includes Godown and Land in Property Type Overview with click navigation', () => {
+  const properties = [
+    { id: 'p-1', name: 'South Godown', type: 'Godown', status: 'Occupied' },
+    { id: 'p-2', name: 'West Land', type: 'Land', status: 'Available' },
+    { id: 'p-3', name: 'City House', type: 'House', status: 'Occupied' },
+  ];
+  const onNavigateToProperties = vi.fn();
+
+  render(
+    <DashboardPage
+      properties={properties}
+      tenants={[]}
+      bills={[]}
+      notifications={[]}
+      setPage={() => {}}
+      onNavigateToProperties={onNavigateToProperties}
+    />
+  );
+
+  // Property type overview should display Godowns and Lands
+  expect(screen.getByText('Godowns')).toBeDefined();
+  expect(screen.getByText('Lands')).toBeDefined();
+
+  // Click on Godowns legend item to filter
+  fireEvent.click(screen.getByTitle('Filter by Godowns'));
+  expect(onNavigateToProperties).toHaveBeenCalledWith({ type: 'Godown', status: 'All' });
+
+  // Click on Occupied Properties card
+  fireEvent.click(screen.getByRole('button', { name: /Occupied Properties/ }));
+  expect(onNavigateToProperties).toHaveBeenCalledWith({ status: 'Occupied' });
+
+  // Click on Vacant Properties card
+  fireEvent.click(screen.getByRole('button', { name: /Vacant Properties/ }));
+  expect(onNavigateToProperties).toHaveBeenCalledWith({ status: 'Available' });
 });
 
