@@ -235,3 +235,17 @@ test('dashboard includes Godown and Land in Property Type Overview with click na
   expect(onNavigateToProperties).toHaveBeenCalledWith({ status: 'Available' });
 });
 
+
+test('carries a partial rent balance forward once without double counting', () => {
+  // Month 1: ₹8,000 due, ₹7,500 paid → ₹500 balance
+  const jan = { id: 'r1', month: 'January', year: 2026, amount: 8000, totalDue: 8000, paidAmount: 7500, balanceAmount: 500, status: 'Partially Paid' };
+  const afterJan = calculateTenantBalances({ rentHistory: [jan] }, 'February', 2026);
+  expect(afterJan.previousOutstanding).toBe(500);
+
+  // Month 2: ₹8,500 due (₹500 carried), ₹8,000 paid → January's balance is rolled into February
+  const janCarried = { ...jan, balanceAmount: 0, status: 'Carried Forward' };
+  const feb = { id: 'r2', month: 'February', year: 2026, amount: 8000, totalDue: 8500, paidAmount: 8000, balanceAmount: 500, status: 'Partially Paid' };
+  const afterFeb = calculateTenantBalances({ rentHistory: [feb, janCarried] }, 'March', 2026);
+  expect(afterFeb.previousOutstanding).toBe(500);
+  expect(afterFeb.previousUnpaidMonths.map((m) => m.month)).toEqual(['February']);
+});

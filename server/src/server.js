@@ -77,13 +77,35 @@ function tenantData(body) {
     livingInHouse: nullableText(body.livingInHouse), education: nullableText(body.education), occupation: nullableText(body.occupation), religion: nullableText(body.religion), email: nullableText(body.email), nativeAddress: nullableText(body.nativeAddress), workAddress: nullableText(body.workAddress),
     familyCount: nullableInt(body.familyCount) ?? 0, rehotraType: nullableText(body.rehotraType), rehotraNumber: nullableText(body.rehotraNumber), rentAmount: nullableNumber(body.rentAmount), advanceAmount: nullableNumber(body.advanceAmount), maintenanceFee: nullableNumber(body.maintenanceFee), brokerageFee: nullableNumber(body.brokerageFee),
     dateOfComing: nullableDate(body.dateOfComing), dateOfLeaving: nullableDate(body.dateOfLeaving), profilePhoto: nullableText(body.profilePhoto), status: body.status || "Active",
-    fileAttachments: { documents: body.documents || {}, documentsList: body.documentsList || [] },
+    fileAttachments: {
+      documents: body.documents || {},
+      documentsList: body.documentsList || [],
+      rentHistoryMeta: body.rentHistory || body.rentHistoryMeta || [],
+      closingSettlement: body.closingSettlement || null,
+    },
   };
 }
 
 function tenantResponse(tenant) {
   const { fileAttachments, ...data } = tenant;
-  return { ...data, ...(fileAttachments || {}) };
+  const metaHistory = fileAttachments?.rentHistoryMeta || [];
+  const mergedRentHistory = (data.rentHistory || []).map((r) => {
+    const meta = metaHistory.find((m) => m.id === r.id || (m.month === r.month && Number(m.year) === Number(r.year))) || {};
+    return {
+      ...r,
+      totalDue: meta.totalDue !== undefined ? meta.totalDue : r.amount,
+      paidAmount: meta.paidAmount !== undefined ? meta.paidAmount : (r.status === 'Paid' ? r.amount : 0),
+      balanceAmount: meta.balanceAmount !== undefined ? meta.balanceAmount : (r.status === 'Paid' ? 0 : r.amount),
+      notes: meta.notes || r.notes || '',
+      paymentMethod: meta.paymentMethod || '',
+      transactionDate: meta.transactionDate || r.paidDate || r.createdAt,
+    };
+  });
+  return {
+    ...data,
+    rentHistory: mergedRentHistory.length > 0 ? mergedRentHistory : (metaHistory.length > 0 ? metaHistory : data.rentHistory),
+    ...(fileAttachments || {}),
+  };
 }
 
 app.get("/api/health", async (req, res) => {
@@ -110,6 +132,15 @@ app.post("/api/properties", async (req, res, next) => {
 });
 app.put("/api/properties/:id", async (req, res, next) => {
   try { const data = propertyData(req.body); if (!requireFields(res, data.name, data.address, data.ownerName, data.ownerPhone)) return; res.json(propertyResponse(await prisma.property.update({ where: { id: req.params.id }, data }))); } catch (error) { next(error); }
+});
+app.patch("/api/properties/:id", async (req, res, next) => {
+  try {
+    const existing = await prisma.property.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ message: "Property not found" });
+    const merged = { ...existing, ...req.body };
+    const data = propertyData(merged);
+    res.json(propertyResponse(await prisma.property.update({ where: { id: req.params.id }, data })));
+  } catch (error) { next(error); }
 });
 app.delete("/api/properties/:id", async (req, res, next) => { try { await prisma.property.delete({ where: { id: req.params.id } }); res.status(204).end(); } catch (error) { next(error); } });
 

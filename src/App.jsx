@@ -946,6 +946,13 @@ function PropertyForm({ initial, onSave, onCancel, pushToast }) {
               <option>Residential</option><option>Commercial</option><option>Agricultural</option><option>Industrial</option>
             </select></label>
           )}
+          <label>
+            Occupancy status
+            <select value={form.status === 'Occupied' ? 'Occupied' : 'Available'} onChange={(e) => set('status', e.target.value)}>
+              <option value="Available">Vacant / Available</option>
+              <option value="Occupied">Occupied</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -1251,12 +1258,18 @@ export function DashboardPage({ properties, tenants, bills, notifications, setPa
     return months;
   }, [tenants, now.getMonth(), now.getFullYear()]);
 
+  const isType = (p, ...keys) => {
+    const t = String(p.type || '').trim().toLowerCase();
+    const mode = String(p.mode || '').trim().toLowerCase();
+    return keys.some((k) => t === k || t.includes(k) || (k === 'land' && mode === 'land'));
+  };
+
   const propertyTypes = [
-    { label: 'Houses', value: properties.filter(p => p.type === 'House').length, color: '#214a91', type: 'House' },
-    { label: 'Offices', value: properties.filter(p => p.type === 'Office').length, color: '#e0a83b', type: 'Office' },
-    { label: 'Complexes', value: properties.filter(p => p.type === 'Complex').length, color: '#7f8fc8', type: 'Complex' },
-    { label: 'Godowns', value: properties.filter(p => p.type === 'Godown').length, color: '#10b981', type: 'Godown' },
-    { label: 'Lands', value: properties.filter(p => p.type === 'Land').length, color: '#9333ea', type: 'Land' },
+    { label: 'Houses', value: properties.filter(p => isType(p, 'house', 'flat', 'apart', 'resident', 'villa')).length, color: '#214a91', type: 'House' },
+    { label: 'Offices', value: properties.filter(p => isType(p, 'office', 'commercial', 'shop')).length, color: '#e0a83b', type: 'Office' },
+    { label: 'Complexes', value: properties.filter(p => isType(p, 'complex', 'building')).length, color: '#7f8fc8', type: 'Complex' },
+    { label: 'Godowns', value: properties.filter(p => isType(p, 'godown', 'warehouse', 'storage', 'shed')).length, color: '#10b981', type: 'Godown' },
+    { label: 'Lands', value: properties.filter(p => isType(p, 'land', 'plot', 'site', 'farm')).length, color: '#9333ea', type: 'Land' },
   ];
   const totalType = propertyTypes.reduce((s, x) => s + x.value, 0);
   const rentStatus = [
@@ -1294,7 +1307,7 @@ export function DashboardPage({ properties, tenants, bills, notifications, setPa
         <section className="dash-panel property-overview-panel">
           <div className="panel-title"><div><h3>Property Type Overview</h3><p>Total properties by type</p></div></div>
           <div className="donut-layout">
-            <DonutChart segments={propertyTypes.filter(x=>x.value>0)} size={112} thickness={18}/>
+            <DonutChart segments={propertyTypes.filter(x=>x.value>0)} size={112} thickness={18} centerText={properties.length || totalType}/>
             <div className="reference-legend">{propertyTypes.map((x)=><div key={x.label} className="legend-clickable" title={`Filter by ${x.label}`} onClick={() => handleNavProps({ type: x.type, status: 'All' })}><i style={{background:x.color}}/><span>{x.label}</span><b>{x.value}</b></div>)}</div>
           </div>
         </section>
@@ -1532,16 +1545,24 @@ function PropertiesPage({ properties, filter = { status: 'All', type: 'All' }, o
   }, [filter?.type, filter?.status]);
 
   const search = query.trim().toLowerCase();
-  const occupiedCount = properties.filter((p) => p.status === 'Occupied').length;
-  const vacantCount = properties.filter((p) => p.status !== 'Occupied').length;
+  const occupiedCount = properties.filter((p) => String(p.status || '').toLowerCase() === 'occupied').length;
+  const vacantCount = properties.length - occupiedCount;
 
   const filtered = properties.filter((p) => {
     const name = String(p.name || '').toLowerCase();
     const address = String(p.address || '').toLowerCase();
-    const matchesType = typeFilter === 'All' || p.type === typeFilter;
+    const pType = String(p.type || '').toLowerCase();
+    const fType = String(typeFilter).toLowerCase();
+    const matchesType = typeFilter === 'All'
+      || p.type === typeFilter
+      || pType === fType
+      || (fType === 'godown' && (pType.includes('godown') || pType.includes('warehouse') || pType.includes('storage') || pType.includes('shed')))
+      || (fType === 'land' && (pType.includes('land') || pType.includes('plot') || pType.includes('site') || pType.includes('farm') || p.mode === 'land'));
+
+    const isOccupied = String(p.status || '').toLowerCase() === 'occupied';
     const matchesStatus = statusFilter === 'All'
-      || (statusFilter === 'Occupied' && p.status === 'Occupied')
-      || ((statusFilter === 'Available' || statusFilter === 'Vacant') && p.status !== 'Occupied');
+      || (statusFilter === 'Occupied' && isOccupied)
+      || ((statusFilter === 'Available' || statusFilter === 'Vacant') && !isOccupied);
     const matchesQuery = !search || name.includes(search) || address.includes(search);
     return matchesType && matchesStatus && matchesQuery;
   });
@@ -1587,23 +1608,25 @@ function PropertiesPage({ properties, filter = { status: 'All', type: 'All' }, o
       </div>
       <div className="grid-cards">
         {filtered.length === 0 && <EmptyState text="No properties found" actionLabel="Add property" onAction={() => { setEditing(null); setModalOpen(true); }} />}
-        {filtered.map((p) => (
-          <div className="property-card" key={p.id}>
-            <div className="property-card-top">
-              <Badge text={p.type} tone="info" />
-              <button
-                type="button"
-                className="status-toggle-btn"
-                title={`Click to mark as ${p.status === 'Occupied' ? 'Vacant' : 'Occupied'}`}
-                onClick={() => {
-                  const nextStatus = p.status === 'Occupied' ? 'Available' : 'Occupied';
-                  onUpdate({ ...p, status: nextStatus });
-                  pushToast(`Property marked as ${nextStatus === 'Occupied' ? 'Occupied' : 'Vacant'}`);
-                }}
-              >
-                <Badge text={p.status === 'Occupied' ? 'Occupied' : 'Vacant'} tone={p.status === 'Occupied' ? 'success' : 'default'} />
-              </button>
-            </div>
+        {filtered.map((p) => {
+          const isOccupied = String(p.status || '').toLowerCase() === 'occupied';
+          return (
+            <div className="property-card" key={p.id}>
+              <div className="property-card-top">
+                <Badge text={p.type} tone="info" />
+                <button
+                  type="button"
+                  className="status-toggle-btn"
+                  title={`Click to mark as ${isOccupied ? 'Vacant' : 'Occupied'}`}
+                  onClick={() => {
+                    const nextStatus = isOccupied ? 'Available' : 'Occupied';
+                    onUpdate({ ...p, status: nextStatus });
+                    pushToast(`Property marked as ${nextStatus === 'Occupied' ? 'Occupied' : 'Vacant'}`);
+                  }}
+                >
+                  <Badge text={isOccupied ? 'Occupied' : 'Vacant'} tone={isOccupied ? 'success' : 'default'} />
+                </button>
+              </div>
             <h3>{p.name}</h3>
             <p className="muted small"><Icon name="mapPin" size={13} /> {p.address}, {p.city}</p>
             <div className="property-card-actions">
@@ -1612,7 +1635,8 @@ function PropertiesPage({ properties, filter = { status: 'All', type: 'All' }, o
               <button className="icon-btn danger" title="Delete" onClick={() => setConfirmDelete(p)}><Icon name="trash" size={15} /></button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       {modalOpen && (
         <Modal title={editing ? 'Edit property' : 'Add property'} onClose={() => setModalOpen(false)} wide>
@@ -1847,7 +1871,9 @@ function RentPaymentModal({ tenant, record, properties, onClose, onSavePayment, 
     return calculateTenantBalances(tenant, month, year);
   }, [tenant, month, year]);
 
-  const previousBalance = balanceInfo.previousOutstanding;
+  // When re-editing a payment, keep arrears that were already rolled into this record
+  const carriedIn = Math.max(0, Number(record?.totalDue || 0) - baseRent);
+  const previousBalance = balanceInfo.previousOutstanding + carriedIn;
   const totalDue = baseRent + previousBalance;
 
   // Initial payment amount: if previously recorded, use paidAmount, else default to totalDue
@@ -1886,7 +1912,8 @@ function RentPaymentModal({ tenant, record, properties, onClose, onSavePayment, 
         paidDate: new Date(paymentDate).toISOString(),
         notes,
         sendWhatsApp,
-        clearedMonths: remainingBalance === 0 && previousBalance > 0 ? balanceInfo.previousUnpaidMonths : [],
+        // Earlier balances are rolled into this record's total due, so they are always cleared from their own months
+        clearedMonths: balanceInfo.previousUnpaidMonths,
       });
     }
     onClose();
@@ -2013,7 +2040,7 @@ function FinalClosingBillModal({ tenant, properties, bills, onClose, onSettleAnd
       const due = Number(rec.totalDue || rec.amount || 0);
       const paid = Number(rec.paidAmount !== undefined ? rec.paidAmount : (rec.status === 'Paid' ? due : 0));
       const bal = Number(rec.balanceAmount !== undefined ? rec.balanceAmount : (rec.status === 'Paid' ? 0 : Math.max(0, due - paid)));
-      if (bal > 0 || rec.status !== 'Paid') {
+      if (bal > 0) {
         list.push({
           month: rec.month,
           year: rec.year,
@@ -3382,14 +3409,16 @@ export default function App({ initialUser }) {
       clearedMonths.forEach((clr) => {
         const pIdx = history.findIndex((h) => h.month === clr.month && Number(h.year) === Number(clr.year) && h !== targetRecord);
         if (pIdx !== -1) {
+          const clearedStatus = balanceAmount === 0 ? 'Paid' : 'Carried Forward';
+          const clearedNote = balanceAmount === 0 ? `Cleared with ${month} ${year} payment` : `Balance carried forward to ${month} ${year}`;
           history[pIdx] = {
             ...history[pIdx],
-            status: 'Paid',
+            status: clearedStatus,
             balanceAmount: 0,
-            notes: history[pIdx].notes ? `${history[pIdx].notes} (Cleared with ${month} ${year} payment)` : `Cleared with ${month} ${year} payment`,
+            notes: history[pIdx].notes ? `${history[pIdx].notes} (${clearedNote})` : clearedNote,
           };
           if (history[pIdx].id) {
-            updateRentRecord(history[pIdx].id, { status: 'Paid', balanceAmount: 0 }).catch(() => {});
+            updateRentRecord(history[pIdx].id, { status: clearedStatus }).catch(() => {});
           }
         }
       });
@@ -3399,7 +3428,8 @@ export default function App({ initialUser }) {
     setTenants((ts) => ts.map((t) => (t.id === tenantId ? updatedTenant : t)));
     persistTenant(tenantId, updatedTenant).catch(() => {});
 
-    if (targetRecord?.id && recordIdx !== -1) {
+    const isNewRecord = recordIdx === -1 || recordIdx === undefined;
+    if (targetRecord?.id && !isNewRecord) {
       updateRentRecord(targetRecord.id, {
         status,
         paidAmount,
@@ -3418,6 +3448,11 @@ export default function App({ initialUser }) {
         balanceAmount,
         paidDate: transactionDate,
         notes,
+      }).then((saved) => {
+        if (!saved?.id || !targetRecord?.id) return;
+        setTenants((ts) => ts.map((t) => (t.id === tenantId
+          ? { ...t, rentHistory: (t.rentHistory || []).map((r) => (r.id === targetRecord.id ? { ...r, id: saved.id } : r)) }
+          : t)));
       }).catch(() => {});
     }
 
