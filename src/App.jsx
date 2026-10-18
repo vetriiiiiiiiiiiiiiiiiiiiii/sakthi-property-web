@@ -1887,7 +1887,6 @@ function RentPaymentModal({ tenant, record, properties, onClose, onSavePayment, 
     record?.paidDate ? new Date(record.paidDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)
   );
   const [notes, setNotes] = useState(record?.notes || '');
-  const [sendWhatsApp, setSendWhatsApp] = useState(true);
 
   const numPaid = Math.max(0, Number(amountPaid) || 0);
   const remainingBalance = Math.max(0, totalDue - numPaid);
@@ -1911,7 +1910,6 @@ function RentPaymentModal({ tenant, record, properties, onClose, onSavePayment, 
         paymentMethod: paymentMode,
         paidDate: new Date(paymentDate).toISOString(),
         notes,
-        sendWhatsApp,
         // Earlier balances are rolled into this record's total due, so they are always cleared from their own months
         clearedMonths: balanceInfo.previousUnpaidMonths,
       });
@@ -1919,9 +1917,6 @@ function RentPaymentModal({ tenant, record, properties, onClose, onSavePayment, 
     onClose();
   }
 
-  const whatsAppPreview = numPaid >= totalDue
-    ? `Hello ${tenant.fullName}, your rent payment of ${formatCurrency(numPaid)} for ${month} ${year} has been received in full${previousBalance > 0 ? ` (clearing ${formatCurrency(previousBalance)} previous balance)` : ''}. Thank you - Sakthi Property.`
-    : `Hello ${tenant.fullName}, received partial rent payment of ${formatCurrency(numPaid)} for ${month} ${year}. Balance amount remaining: ${formatCurrency(remainingBalance)}. This balance will be carried forward to your next transaction / final closing bill. Thank you - Sakthi Property.`;
 
   return (
     <Modal title={`Record Rent Payment — ${tenant.fullName}`} onClose={onClose} wide>
@@ -1994,21 +1989,6 @@ function RentPaymentModal({ tenant, record, properties, onClose, onSavePayment, 
           </div>
         )}
 
-        <div className="whatsapp-preview-box">
-          <div className="whatsapp-preview-header">
-            <Icon name="phone" size={14} /> WhatsApp Balance Notification Preview
-          </div>
-          <div>{whatsAppPreview}</div>
-        </div>
-
-        <label className="checkbox" style={{ margin: '8px 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            type="checkbox"
-            checked={sendWhatsApp}
-            onChange={(e) => setSendWhatsApp(e.target.checked)}
-          />
-          Send WhatsApp notification with balance details to {tenant.fullName} ({tenant.phone || '—'})
-        </label>
 
         <div className="form-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -3343,9 +3323,6 @@ export default function App({ initialUser }) {
     const transactionDate = new Date().toISOString();
     if (source.id) updateRentRecord(source.id, { status: 'Paid', paidDate: transactionDate }).catch(() => {});
     else createRentRecord(tenantId, { ...source, month: paidMonth, year: source.year || new Date().getFullYear(), amount: paidAmount, status: 'Paid', paidDate: transactionDate }).catch(() => {});
-    const message = `Hello ${tenant.fullName}, your rent of ${formatCurrency(paidAmount)} for ${paidMonth} has been marked as paid. Thank you - Sakthi Property.`;
-    pushNotification(`Rent paid: ${tenant.fullName} - ${formatCurrency(paidAmount)} for ${paidMonth}`, 'send');
-    openWhatsAppForTenant(tenant, message);
   }
 
   function saveRentPayment(paymentData) {
@@ -3362,7 +3339,6 @@ export default function App({ initialUser }) {
       paymentMethod,
       paidDate,
       notes,
-      sendWhatsApp,
       clearedMonths,
     } = paymentData;
 
@@ -3456,16 +3432,7 @@ export default function App({ initialUser }) {
       }).catch(() => {});
     }
 
-    const notifMsg = `Rent payment: ${tenant.fullName} - ${formatCurrency(paidAmount)} for ${month} ${year}${balanceAmount > 0 ? ` (Balance remaining: ${formatCurrency(balanceAmount)})` : ''}`;
-    pushNotification(notifMsg, 'send');
     pushToast(`Payment recorded for ${tenant.fullName}`);
-
-    if (sendWhatsApp) {
-      const msg = balanceAmount > 0
-        ? `Hello ${tenant.fullName}, received partial rent payment of ${formatCurrency(paidAmount)} for ${month} ${year}. Balance amount remaining: ${formatCurrency(balanceAmount)}. This balance will be carried forward to your next transaction / final closing bill. Thank you - Sakthi Property.`
-        : `Hello ${tenant.fullName}, your rent payment of ${formatCurrency(paidAmount)} for ${month} ${year} has been received in full. Thank you - Sakthi Property.`;
-      openWhatsAppForTenant(tenant, msg);
-    }
   }
 
   function settleAndArchiveTenant(tenantId, closingData) {
