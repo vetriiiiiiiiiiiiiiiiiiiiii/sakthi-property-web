@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import App, { calculateLandArea, calculateTenantBalances, DashboardPage, TenantsPage } from './App';
+import App, { calculateLandArea, calculateTenantBalances, DashboardPage, rentDueReminderMessage, rentPaidMessage, TenantsPage } from './App';
 
 test('converts length and breadth to acre, cent, square feet, and kuli', () => {
   expect(calculateLandArea(20, 30)).toEqual({
@@ -88,7 +88,6 @@ test('previous tenants can download an individual PDF with their own details', (
     onArchive={() => {}}
     onRestore={() => {}}
     pushToast={() => {}}
-    sendMessage={() => {}}
   />);
 
   fireEvent.click(screen.getByRole('checkbox', { name: 'Show previous tenants' }));
@@ -248,4 +247,11 @@ test('carries a partial rent balance forward once without double counting', () =
   const afterFeb = calculateTenantBalances({ rentHistory: [feb, janCarried] }, 'March', 2026);
   expect(afterFeb.previousOutstanding).toBe(500);
   expect(afterFeb.previousUnpaidMonths.map((m) => m.month)).toEqual(['February']);
+});
+
+test('builds WhatsApp rent receipt and monthly dues reminder messages', () => {
+  const tenant = { fullName: 'Ravi' };
+  expect(rentPaidMessage(tenant, { month: 'October', year: 2026, paidAmount: 8000, balanceAmount: 0 })).toMatch(/Ravi.*8,000.*October 2026 in full/);
+  expect(rentPaidMessage(tenant, { month: 'October', year: 2026, paidAmount: 7500, balanceAmount: 500 })).toMatch(/Balance remaining: ₹500/);
+  expect(rentDueReminderMessage(tenant, { month: 'November', year: 2026, amountDue: 8500 })).toMatch(/reminder.*8,500.*November 2026 is due/);
 });

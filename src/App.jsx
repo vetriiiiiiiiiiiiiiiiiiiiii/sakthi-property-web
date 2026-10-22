@@ -216,6 +216,17 @@ function openWhatsAppForTenant(tenant, message) {
   return true;
 }
 
+export function rentPaidMessage(tenant, { month, year, paidAmount, balanceAmount }) {
+  const period = `${month} ${year || ''}`.trim();
+  return balanceAmount > 0
+    ? `Hello ${tenant.fullName}, we have received your rent payment of ${formatCurrency(paidAmount)} for ${period}. Balance remaining: ${formatCurrency(balanceAmount)}, which will be carried forward to next month. Thank you - Sakthi Property.`
+    : `Hello ${tenant.fullName}, we have received your rent payment of ${formatCurrency(paidAmount)} for ${period} in full. Thank you - Sakthi Property.`;
+}
+
+export function rentDueReminderMessage(tenant, { month, year, amountDue }) {
+  return `Hello ${tenant.fullName}, this is a friendly reminder that your rent of ${formatCurrency(amountDue)} for ${month} ${year} is due. Kindly pay at your earliest convenience. Thank you - Sakthi Property.`;
+}
+
 export function calculateTenantBalances(tenant, currentMonth, currentYear) {
   const history = Array.isArray(tenant?.rentHistory) ? tenant.rentHistory : [];
   let previousOutstanding = 0;
@@ -1674,7 +1685,7 @@ function PropertiesPage({ properties, filter = { status: 'All', type: 'All' }, o
 /* =========================================================
    TENANTS PAGE
    ========================================================= */
-export function TenantsPage({ tenants, properties, bills, onAdd, onUpdate, onArchive, onRestore, onSettleAndArchive, pushToast, sendMessage, onBack }) {
+export function TenantsPage({ tenants, properties, bills, onAdd, onUpdate, onArchive, onRestore, onSettleAndArchive, pushToast, onBack }) {
   const [buildingFilter, setBuildingFilter] = useState('All');
   const [query, setQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -1733,7 +1744,12 @@ export function TenantsPage({ tenants, properties, bills, onAdd, onUpdate, onArc
                   <button className="icon-btn" title="Rent history" onClick={() => setHistoryOf(t)}><Icon name="clock" size={15} /></button>
                   <button className="icon-btn" title="Final Closing Bill &amp; Settlement" aria-label={`Final Closing Bill for ${t.fullName}`} onClick={() => setClosingBillTenant(t)}><Icon name="receipt" size={15} /></button>
                   <button className="icon-btn" title="Edit" onClick={() => { setEditing(t); setModalOpen(true); }}><Icon name="edit" size={15} /></button>
-                  <button className="icon-btn" title="Send reminder" onClick={() => { sendMessage(t, 'Friendly rent reminder'); pushToast('Message sent to ' + t.fullName); }}><Icon name="send" size={15} /></button>
+                  <button className="icon-btn" title="Send reminder" onClick={() => {
+                    const now = new Date();
+                    const { previousOutstanding } = calculateTenantBalances(t, MONTHS[now.getMonth()], now.getFullYear());
+                    const sent = openWhatsAppForTenant(t, rentDueReminderMessage(t, { month: MONTHS[now.getMonth()], year: now.getFullYear(), amountDue: Number(t.rentAmount || 0) + previousOutstanding }));
+                    pushToast(sent ? `Rent reminder sent to ${t.fullName}` : `No phone number for ${t.fullName}`);
+                  }}><Icon name="send" size={15} /></button>
                   {t.status !== 'Archived'
                     ? <button className="icon-btn" title="Archive" onClick={() => setConfirmArchive(t)}><Icon name="archive" size={15} /></button>
                     : <button className="icon-btn" title="Restore" onClick={() => { onRestore(t.id); pushToast('Tenant restored'); }}><Icon name="check" size={15} /></button>}
@@ -2220,7 +2236,7 @@ function FinalClosingBillModal({ tenant, properties, bills, onClose, onSettleAnd
 /* =========================================================
    RENT PAGE
    ========================================================= */
-function RentPage({ tenants, properties, onMarkPaid, onSavePayment, sendMessage, pushToast, onBack, onSettleAndArchive, bills }) {
+function RentPage({ tenants, properties, onMarkPaid, onSavePayment, pushToast, onBack, onSettleAndArchive, bills }) {
   const [tenantQuery, setTenantQuery] = useState('');
   const [historyOf, setHistoryOf] = useState(null);
   const [paymentModal, setPaymentModal] = useState(null);
@@ -2294,8 +2310,8 @@ function RentPage({ tenants, properties, onMarkPaid, onSavePayment, sendMessage,
       openWhatsAppForTenant(tenant, msg);
       if (pushToast) pushToast(`Balance reminder sent to ${tenant.fullName}`);
     } else {
-      if (sendMessage) sendMessage(tenant, `Rent of ${formatCurrency(r.totalDue || r.amount)} for ${r.month} ${r.year} is due`);
-      if (pushToast) pushToast('Reminder prepared');
+      const sent = openWhatsAppForTenant(tenant, rentDueReminderMessage(tenant, { month: r.month, year: r.year, amountDue: r.totalDue || r.amount }));
+      if (pushToast) pushToast(sent ? `Rent reminder sent to ${tenant.fullName}` : `No phone number for ${tenant.fullName}`);
     }
   }
 
@@ -3229,10 +3245,6 @@ export default function App({ initialUser }) {
   function pushNotification(message, type = 'alert') {
     setNotifications((n) => [{ id: uid(), message, type, date: new Date().toISOString(), read: false }, ...n]);
   }
-  function sendMessage(tenant, text) {
-    if (!tenant) return;
-    pushNotification(`Message to ${tenant.fullName}: ${text}`, 'send');
-  }
 
   function handleLoginSuccess(user) {
     setCurrentUser(user);
@@ -3323,6 +3335,7 @@ export default function App({ initialUser }) {
     const transactionDate = new Date().toISOString();
     if (source.id) updateRentRecord(source.id, { status: 'Paid', paidDate: transactionDate }).catch(() => {});
     else createRentRecord(tenantId, { ...source, month: paidMonth, year: source.year || new Date().getFullYear(), amount: paidAmount, status: 'Paid', paidDate: transactionDate }).catch(() => {});
+    openWhatsAppForTenant(tenant, rentPaidMessage(tenant, { month: paidMonth, year: source.year || new Date().getFullYear(), paidAmount, balanceAmount: 0 }));
   }
 
   function saveRentPayment(paymentData) {
@@ -3433,6 +3446,7 @@ export default function App({ initialUser }) {
     }
 
     pushToast(`Payment recorded for ${tenant.fullName}`);
+    openWhatsAppForTenant(tenant, rentPaidMessage(tenant, { month, year, paidAmount, balanceAmount }));
   }
 
   function settleAndArchiveTenant(tenantId, closingData) {
@@ -3493,8 +3507,8 @@ export default function App({ initialUser }) {
       case 'dashboard': return <DashboardPage properties={properties} tenants={tenants} bills={bills} notifications={notifications} setPage={setPage} onNavigateToProperties={navigateToProperties} />;
       case 'properties': return <PropertiesPage properties={properties} filter={propertyFilter} onFilterChange={setPropertyFilter} onAdd={addProperty} onUpdate={updateProperty} onDelete={deleteProperty} onToggleSale={toggleSale} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'calculator': return <CalculatorPage onBack={() => setPage('dashboard')} />;
-      case 'tenants': return <TenantsPage tenants={tenants} properties={properties} bills={bills} onAdd={addTenant} onUpdate={updateTenant} onArchive={archiveTenant} onRestore={restoreTenant} onSettleAndArchive={settleAndArchiveTenant} pushToast={pushToast} sendMessage={sendMessage} onBack={() => setPage('dashboard')} />;
-      case 'rent': return <RentPage tenants={tenants} properties={properties} bills={bills} onMarkPaid={markRentPaid} onSavePayment={saveRentPayment} onSettleAndArchive={settleAndArchiveTenant} sendMessage={sendMessage} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
+      case 'tenants': return <TenantsPage tenants={tenants} properties={properties} bills={bills} onAdd={addTenant} onUpdate={updateTenant} onArchive={archiveTenant} onRestore={restoreTenant} onSettleAndArchive={settleAndArchiveTenant} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
+      case 'rent': return <RentPage tenants={tenants} properties={properties} bills={bills} onMarkPaid={markRentPaid} onSavePayment={saveRentPayment} onSettleAndArchive={settleAndArchiveTenant} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'bills': return <BillsPage bills={bills} properties={properties} onAdd={addBill} onMarkPaid={markBillPaid} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'maintenance': return <MaintenancePage requests={maintenance} properties={properties} onAdd={addMaintenance} onStatusChange={changeMaintenanceStatus} pushToast={pushToast} onBack={() => setPage('dashboard')} />;
       case 'reports': return <ReportsPage tenants={tenants} properties={properties} onBack={() => setPage('dashboard')} />;
